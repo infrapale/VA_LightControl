@@ -5,8 +5,6 @@
 
 #define MENU_DATA
 
-#define NETWORKID     100  // The same on all nodes that talk to each other
-#define NODEID        12    // The unique identifier of this node
 #define BROADCAST     255
 #define RECEIVER      BROADCAST    // The recipient of packets
 
@@ -31,13 +29,9 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <RH_RF69.h>
-// #include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
-
 #include <SPI.h>
-#include <Astrid.h>
 #include <VillaAstrid.h>
 #include <SimpleTimer.h> 
-#include <SmartLoop.h>
 #include <Secret.h>
 
 #ifdef K_BTN
@@ -53,29 +47,24 @@ akbd qkbd(A1);
 
 struct btn_struct {
    byte pin;
+   byte state;
    byte cntr;   
-   boolean pressed;
-   char value;
 };
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
-// RFM69 rf69 = RFM69(RFM69_CS, RFM69_IRQ, IS_RFM69HCW, RFM69_IRQN);
-
-SmartLoop Smart(1);
 SimpleTimer timer;
 
-//akbd4 kbd(0,1,2,3);
-//char key_buff[MAX_BTN];
-unit_type_entry Me ={"MH1T1","Terminal","T168","T1150","T168","17v01",'0'}; //len = 9,5,5,5,9,byte
+unit_type_entry Me ={"MH1T1","Terminal","T168","T150","T168","17v01",'0'}; //len = 9,5,5,5,9,byte
 time_type MyTime = {2017, 1,30,12,05,30}; 
+
 btn_struct btn[MAX_BTN] ={
-  {3,0,false,0},
-  {4,0,false,0},
-  {5,0,false,0},
-  {6,0,false,0},
-  {7,0,false,0},
-  {8,0,false,0}
+  {3,0,0},
+  {4,0,0},
+  {5,0,0},
+  {6,0,0},
+  {7,0,0},
+  {8,0,0}
 };
 
 boolean msgReady;
@@ -87,7 +76,7 @@ byte btn_indx;
 void setup() {
   byte i;
   while (!Serial); // wait until serial console is open, remove if not tethered to computer
-  //Serial.begin(SERIAL_BAUD);
+  Serial.begin(SERIAL_BAUD);
   for (i=0;i<MAX_BTN;i++){
      if( btn[i].pin > 0) {
          pinMode(btn[i].pin, INPUT_PULLUP);
@@ -100,23 +89,13 @@ void setup() {
   qkbd.begin();
   #endif
 
-  Smart.begin(SERIAL_BAUD);
-  Serial.println("Arduino RFM69HCW Transmitter");
-  
-  // Hard Reset the RFM module
-  pinMode(RFM69_RST, OUTPUT);
-  digitalWrite(RFM69_RST, HIGH);
-  delay(100);
-  digitalWrite(RFM69_RST, LOW);
-  delay(100);
-  #ifdef K_BTN
-  kbd.begin();
-  qkbd.begin();
-  #endif
+  pinMode(LED, OUTPUT);     
+
   //==========================================================
   // Initialize rf69
   //==========================================================
-  pinMode(LED, OUTPUT);     
+  // Hard Reset the RFM module
+  // Serial.println("Arduino RFM69HCW Transmitter");
   pinMode(RFM69_RST, OUTPUT);
   digitalWrite(RFM69_RST, LOW);
 
@@ -124,9 +103,9 @@ void setup() {
 
   // manual reset
   digitalWrite(RFM69_RST, HIGH);
-  delay(10);
+  delay(100);
   digitalWrite(RFM69_RST, LOW);
-  delay(10);
+  delay(100);
   
   if (!rf69.init()) {
     Serial.println("RFM69 rf69 init failed");
@@ -144,24 +123,16 @@ void setup() {
   // ishighpowermodule flag set like this:
   rf69.setTxPower(20, true);  // range from 14-20 for power, 2nd arg must be true for 69HCW
 
-  // from secret.h        1234567890123456
+  // in secret.h          1234567890123456
   //uint8_t rfm69_key[] ="Xyzabde123456789"; //exactly the same 16 characters/bytes on all nodes!
-
   rf69.setEncryptionKey(rfm69_key);
-  
-  pinMode(LED, OUTPUT);
-
   Serial.print("RFM69 rf69 @");  Serial.print((int)RFM69_FREQ,DEC);  Serial.println(" MHz");
 
-
-  
   //==========================================================
   // Real time settings
   //==========================================================
-
   timer.setInterval(10, run_10ms);
   timer.setInterval(1000, run_1000ms);
-
 }
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -169,46 +140,43 @@ void setup() {
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 void loop() {
-   byte msg_indx;
-   char rf69_packet[20] = "";
-   byte i; 
-   String r_addr;
-   boolean done;
+    byte msg_indx;
+    char rf69_packet[20] = "";
+    byte i; 
+    String r_addr;
+    boolean done;
   
-   timer.run();
-   #if defined(MH1_BTN) || defined(MH2_BTN)
-   key = rd_btn();   //kbd.read();
-   #endif
-   #ifdef K_BTN
-   key = qkbd.read();
-   if (key == 0) key = kbd.read();
+    timer.run();
+    #if defined(MH1_BTN) || defined(MH2_BTN)
+    key = rd_btn();   //kbd.read();
+    #endif
+    #ifdef K_BTN
+    key = qkbd.read();
+    if (key == 0) key = kbd.read();
     if (key) Serial.println(key);   
-   #endif
+    #endif
   
-  //if (key != 0) {
-  //   Serial.print("key(hex)=");Serial.println(key,HEX);
-  //}
-  msg_indx = 0;
-  done = false; i = 0;
-  if (tx_delay_10ms == 0 ){
-     while ( !done ) {
-        if ( btn[i].value ) {
-           Serial.print("index=");Serial.print(i);Serial.print(" : ");Serial.println(btn[i].value);
-           switch(btn[i].value){
-           #ifdef MH1_BTN
-              case '1': radiate_msg("RGMH1"); break;
-              case '2': radiate_msg("RMH14"); break;
-              case '3': radiate_msg("RET_1"); break;
-           #endif
-           #ifdef MH2_BTN
-              case '1': radiate_msg("RMH21"); break;
-              case '2': radiate_msg("RMH22"); break;
-              case '3': radiate_msg("RET_1"); break;             
-           #endif
-          } 
-             btn[i].value= 0;
-             done = true;
-             tx_delay_10ms = 150;
+    //if (key != 0) {
+    //   Serial.print("key(hex)=");Serial.println(key,HEX);
+    //}
+    msg_indx = 0;
+    if (tx_delay_10ms == 0 ){
+        char btn = rd_btn();
+        if (btn) {
+            Serial.print("button= ");Serial.print(btn);
+            switch(btn){
+            #ifdef MH1_BTN
+            case '1': radiate_msg("RGMH1"); break;
+            case '2': radiate_msg("RMH14"); break;
+            case '3': radiate_msg("RET_1"); break;
+            #endif
+            #ifdef MH2_BTN
+            case '1': radiate_msg("RMH21"); break;
+            case '2': radiate_msg("RMH22"); break;
+            case '3': radiate_msg("RET_1"); break;             
+            #endif
+            } 
+            tx_delay_10ms = 150;
         }
    
         else {
@@ -236,33 +204,22 @@ void loop() {
 
   }  
 }
+#define RADIO_MSG_LEN 70
 void radiate_msg( char *rf69_msg ) {
-    char rf69_packet[20] = "";
+    String relay_json;
+    char rf69_packet[RADIO_MSG_LEN] = "";
     byte i;
-    
-    if (rf69_msg[0] != 0){
-       rf69_packet[0] = SM_START;
-       rf69_packet[1] = SM_BROADCAST;
-       for (i=0; i<6; i++) rf69_packet[i+2]= rf69_msg[i];  //msg_table[msg_indx].msg[i];
-       i++;
-       if (i<20-3) {
-          rf69_packet[i++] = SM_ASSIGN;
-          rf69_packet[i++] = SM_TOGGLE;
-          rf69_packet[i++] = SM_END;
-          rf69_packet[i] =0;
-       }
-       rf69.send(rf69_packet, strlen(rf69_packet));
-       rf69.waitPacketSent();
-       Serial.println(rf69_packet);
 
-       //delay(500);
-
-    }
+    relay_json = JsonRelayString("VA",rf69_msg,"T","")
+    relay_json.toCharArray(f69_packet, RADIO_MSG_LEN);
+ 
+    rf69.send(rf69_packet, strlen(rf69_packet));
+    rf69.waitPacketSent();
 }
 
 void run_10ms(void){
-   Smart.HeartBeat10ms();
-   if( Smart.Monitor()) msgReady = true;
+   //Smart.HeartBeat10ms();
+   //if( Smart.Monitor()) msgReady = true;
    //kbd.scan();
    #if defined(MH1_BTN) || defined(MH2_BTN)
    scan_btn();
@@ -288,39 +245,50 @@ void run_1000ms(){
    }
 }
 
+#define BTN_DEB_CNT = 20 
+#define KEY_BUFF_LEN = 4
+char key_buff[KEY_BUF_LEN];
+int key_buff_wr_ptr = 0;
+int key_buff_rd_ptr = 0;
 
 void scan_btn(void){
+  // run every 10ms
   byte i;
   for (i=0;i<MAX_BTN;i++){
-     if (  digitalRead(btn[i].pin) == LOW ) {
-        if ( btn[i].cntr == 0) {
-           btn[i].cntr = 20;
-        }
-        else {
-           btn[i].cntr--;
-           if (( btn[i].cntr == 0) && (btn[i].value==0)) {
-               btn[i].pressed = true;
-           }
-        }
-     }
-     else {   //pin = HIGH
-        btn[i].cntr = 0;
-     }
+      switch(btn[i].state{
+      case 0:   // idle state
+          if (digitalRead(btn[i].pin) == LOW ) {
+              btn[i].cntr = BTN_DEB_CNT;
+              btn[i].state = 1;
+          }
+          break;
+      case 1:   // pressed, debounch         
+          if (digitalRead(btn[i].pin) == LOW ) {
+              if (btn[i].cntr)  btn[i].cntr;
+              else btn[i].state = 2;
+          }
+          else {
+             btn[i].state = 0;
+          }
+          break;
+      case 2:   // pressed, OK
+          if (digitalRead(btn[i].pin) == HIGH ) {
+              btn[i].state = 3;
+          }
+          break;
+      case 3:   // released, Store in buffer
+          key_buff[key_buff_wr_ptr]=i+'0';
+          key_buff_wr_ptr = ++key_buff_wr_ptr && 0x03;
+          btn[i].state = 0;
+          break;
+      }
   }
 }
 char rd_btn(void){
-   byte i=0;
    char btn_pressed=0;
-   boolean done=false;
-
-   while ( !done ){
-      if (btn[i].pressed) {
-         btn_pressed = i + '1';
-         btn[i].pressed = false;
-         btn[i].value = btn_pressed;
-         done = true;        
-      }
-      if ( ++i == MAX_BTN ) done = true;
+   if (key_buff[key_buff_rd_ptr]){
+       btn_pressed = key_buff[key_buff_rd_ptr];
+       key_buff_rd_ptr = ++key_buff_rd_ptr && 0x03;  // ring buffer
    }
    return(btn_pressed);
 }
