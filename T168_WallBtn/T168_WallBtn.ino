@@ -41,6 +41,8 @@ akbd qkbd(A1);
 //led_blink leds(6,7,3,9,5,4);
 #endif
 
+#include "PinBtn.h"
+
 //*********************************************************************************************
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
@@ -54,18 +56,17 @@ struct btn_struct {
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 SimpleTimer timer;
+PinBtn butt[MAX_BTN];
 
 unit_type_entry Me ={"MH1T1","Terminal","T168","T150","T168","17v01",'0'}; //len = 9,5,5,5,9,byte
 time_type MyTime = {2017, 1,30,12,05,30}; 
 
-btn_struct btn[MAX_BTN] ={
-  {3,0,0},
-  {4,0,0},
-  {5,0,0},
-  {6,0,0},
-  {7,0,0},
-  {8,0,0}
-};
+
+void run_10ms(void);
+void run_1000ms(void);
+void scan_btn(void);
+char rd_btn(void);
+void radiate_msg(char *rf69_msg );
 
 boolean msgReady;
 boolean SerialFlag;
@@ -77,12 +78,14 @@ void setup() {
   byte i;
   while (!Serial); // wait until serial console is open, remove if not tethered to computer
   Serial.begin(SERIAL_BAUD);
-  for (i=0;i<MAX_BTN;i++){
-     if( btn[i].pin > 0) {
-         pinMode(btn[i].pin, INPUT_PULLUP);
-         btn[i].cntr = 0;
-     }
-  }
+  
+  butt[0].Init(3,'1');
+  butt[1].Init(4,'2');
+  butt[2].Init(5,'3');
+  butt[3].Init(6,'4');
+  butt[4].Init(7,'5');
+  butt[5].Init(8,'6');
+  
   btn_indx = 0;
   #ifdef K_BTN
   kbd.begin();
@@ -142,13 +145,13 @@ void setup() {
 void loop() {
     byte msg_indx;
     char rf69_packet[20] = "";
-    byte i; 
+    //byte i; 
     String r_addr;
     boolean done;
   
     timer.run();
     #if defined(MH1_BTN) || defined(MH2_BTN)
-    key = rd_btn();   //kbd.read();
+    // key = rd_btn();   //kbd.read();
     #endif
     #ifdef K_BTN
     key = qkbd.read();
@@ -160,10 +163,15 @@ void loop() {
     //   Serial.print("key(hex)=");Serial.println(key,HEX);
     //}
     msg_indx = 0;
+    
     if (tx_delay_10ms == 0 ){
-        char btn = rd_btn();
-        if (btn) {
-            Serial.print("button= ");Serial.print(btn);
+        char btn;
+        for(int i= 0;i<MAX_BTN;i++){
+            btn = butt[i].Read();  //   rd_btn();
+            if(btn) break;
+        }
+        if (btn != 0) {
+            //Serial.print("button= ");Serial.println(btn);
             switch(btn){
             #ifdef MH1_BTN
             case '1': radiate_msg("RGMH1"); break;
@@ -177,32 +185,24 @@ void loop() {
             #endif
             } 
             tx_delay_10ms = 150;
-        }
-   
-        else {
-           i++;
-           if (i >= MAX_BTN) done = true;
         } 
-        
-     } 
-     #ifdef K_BTN
-     switch(key){
-        case '1': radiate_msg("RGWC_"); break;
-        case '2': radiate_msg("RET_1"); break;
-        case '3': radiate_msg("RPOLK"); break;   
-        case '4': radiate_msg("RGMH2"); break;     
-        case '5': radiate_msg("RPARV"); break;   
-        case '6': radiate_msg("RGMH1"); break;   
-        case '7': radiate_msg("RGKHH"); break;   
-        case '8': radiate_msg("RGTUP"); break;   
-        case '9': radiate_msg("RGKOK"); break;   
-        case '*': radiate_msg("xxxxx"); break;   
-        case '0': radiate_msg("xxxxx"); break;   
-        case '#': radiate_msg("RGBRD"); break;   
-     }  
-     #endif
-
-  }  
+    } 
+    #ifdef K_BTN
+    switch(key){
+       case '1': radiate_msg("RGWC_"); break;        
+       case '2': radiate_msg("RET_1"); break;
+       case '3': radiate_msg("RPOLK"); break;
+       case '4': radiate_msg("RGMH2"); break;     
+       case '5': radiate_msg("RPARV"); break;   
+       case '6': radiate_msg("RGMH1"); break;   
+       case '7': radiate_msg("RGKHH"); break;   
+       case '8': radiate_msg("RGTUP"); break;   
+       case '9': radiate_msg("RGKOK"); break;   
+       case '*': radiate_msg("xxxxx"); break;   
+       case '0': radiate_msg("xxxxx"); break;   
+       case '#': radiate_msg("RGBRD"); break;   
+    }  
+    #endif   
 }
 #define RADIO_MSG_LEN 70
 void radiate_msg( char *rf69_msg ) {
@@ -210,8 +210,8 @@ void radiate_msg( char *rf69_msg ) {
     char rf69_packet[RADIO_MSG_LEN] = "";
     byte i;
 
-    relay_json = JsonRelayString("VA",rf69_msg,"T","")
-    relay_json.toCharArray(f69_packet, RADIO_MSG_LEN);
+    relay_json = JsonRelayString("VA",rf69_msg,"T","");
+    relay_json.toCharArray(rf69_packet, RADIO_MSG_LEN);
  
     rf69.send(rf69_packet, strlen(rf69_packet));
     rf69.waitPacketSent();
@@ -222,7 +222,10 @@ void run_10ms(void){
    //if( Smart.Monitor()) msgReady = true;
    //kbd.scan();
    #if defined(MH1_BTN) || defined(MH2_BTN)
-   scan_btn();
+   for(int i= 0;i<MAX_BTN;i++){
+       butt[i].Scan();
+   }    
+   //scan_btn();
    #endif
    #ifdef K_BTN
    kbd.scan();
@@ -243,54 +246,6 @@ void run_1000ms(){
          }
       }   
    }
-}
-
-#define BTN_DEB_CNT = 20 
-#define KEY_BUFF_LEN = 4
-char key_buff[KEY_BUF_LEN];
-int key_buff_wr_ptr = 0;
-int key_buff_rd_ptr = 0;
-
-void scan_btn(void){
-  // run every 10ms
-  byte i;
-  for (i=0;i<MAX_BTN;i++){
-      switch(btn[i].state{
-      case 0:   // idle state
-          if (digitalRead(btn[i].pin) == LOW ) {
-              btn[i].cntr = BTN_DEB_CNT;
-              btn[i].state = 1;
-          }
-          break;
-      case 1:   // pressed, debounch         
-          if (digitalRead(btn[i].pin) == LOW ) {
-              if (btn[i].cntr)  btn[i].cntr;
-              else btn[i].state = 2;
-          }
-          else {
-             btn[i].state = 0;
-          }
-          break;
-      case 2:   // pressed, OK
-          if (digitalRead(btn[i].pin) == HIGH ) {
-              btn[i].state = 3;
-          }
-          break;
-      case 3:   // released, Store in buffer
-          key_buff[key_buff_wr_ptr]=i+'0';
-          key_buff_wr_ptr = ++key_buff_wr_ptr && 0x03;
-          btn[i].state = 0;
-          break;
-      }
-  }
-}
-char rd_btn(void){
-   char btn_pressed=0;
-   if (key_buff[key_buff_rd_ptr]){
-       btn_pressed = key_buff[key_buff_rd_ptr];
-       key_buff_rd_ptr = ++key_buff_rd_ptr && 0x03;  // ring buffer
-   }
-   return(btn_pressed);
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops)
