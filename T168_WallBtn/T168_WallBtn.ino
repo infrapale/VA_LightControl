@@ -42,9 +42,11 @@ akbd kbd(A0);
 akbd qkbd(A1);
 //led_blink leds(6,7,3,9,5,4);
 #endif
-char code_buff[][];  // ring buffer
+// Code buffer
+char code_buff[CODE_BUFF_LEN][CODE_LEN];  // ring buffer
 byte code_wr_indx;
 byte code_rd_indx;
+int rfm68_tx_ival_cntr;
 #include "PinBtn.h"
 
 //*********************************************************************************************
@@ -58,7 +60,10 @@ SimpleTimer timer;
 PinBtn butt[MAX_BTN];
 
 void run_10ms(void);
+void run_100ms(void);
+void add_code(char *new_code);
 void radiate_msg(char *rf69_msg );
+void add_code(char *new_code);
 
 byte tx_delay_10ms;
  
@@ -138,35 +143,61 @@ void setup() {
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 void loop() {
-   
-    char rf69_packet[20] = "";
-    //byte i; 
-    String r_addr;
-    boolean done;
-  
+     
     timer.run();
+    
+    //-------------------------------------------------------
+    // Read preseed buttons
+    // if button is preseed add a command code to the ring buffer
+    //-------------------------------------------------------
     #if defined(MH1_BTN) || defined(MH2_BTN)
-    // key = rd_btn();   //kbd.read();
+         mini_terminals();
     #endif
-    
     #ifdef K_BTN
-    key = qkbd.read();
-    if (key == 0) key = kbd.read();
-    if (key) Serial.println(key);   
+         maxi_terminals();
     #endif
+        
+    #ifdef K_BTN
+    btn = qkbd.read();
+    if (btn == 0) btn = kbd.read();
+    if (btn) Serial.println(btn);   
+    #endif
+    //-------------------------------------------------------
   
-    //if (key != 0) Serial.print("key(hex)=");Serial.println(key,HEX);
-   
-    
-    if (tx_delay_10ms == 0 ){
-        char btn;
-        for(int i= 0;i<MAX_BTN;i++){
-            btn = butt[i].Read();  //   rd_btn();
-            if(btn) break;
+    //-------------------------------------------------------
+    // Send message vir RFM69
+    // Each message must be separated by an interval
+    // Interval is set in RFM69_TX_IVAL_100ms as 100ms multiplier
+    //-------------------------------------------------------
+    if(rfm68_tx_ival_cntr == 0){
+        if(code_buff[code_rd_indx][0] != 0){
+            radiate_msg(code_buff[code_rd_indx]);
+            code_buff[code_rd_indx][0] = 0;
+            code_rd_indx = ++code_rd_indx & 0b00000111;   
+            rfm68_tx_ival_cntr = RFM69_TX_IVAL_100ms;          
         }
-        if (btn != 0) {
-            //Serial.print("button= ");Serial.println(btn);
-            switch(btn){
+    }
+    //-------------------------------------------------------
+    // infinite loop..
+    //-------------------------------------------------------
+}
+
+void mini_terminals(void){
+    // if button is preseed add a command code to the ring buffer
+
+    char btn;
+    int btns;
+    #if defined(MH1_BTN) || defined(MH2_BTN)
+    btns = 3;
+    #endif
+    
+    for(int i= 0; i < btns; i++){
+        btn = butt[i].Read();  //   rd_btn();
+        if(btn) break;
+    }
+    if (btn != 0) {
+        //Serial.print("button= ");Serial.println(btn);
+        switch(btn){
             #ifdef MH1_BTN
             case '1': add_code("RGMH1"); break;
             case '2': add_code("RMH14"); break;
@@ -175,14 +206,20 @@ void loop() {
             #ifdef MH2_BTN
             case '1': add_code("RMH21"); break;
             case '2': add_code("RMH22"); break;
-            case '3': add_code("RET_1"); break;             
+            case '3': add_code("RET_1"); break;  
             #endif
-            } 
-            tx_delay_10ms = 150;
-        } 
+        }           
+       
     } 
+}
+
+void maxi_terminals(void){
     #ifdef K_BTN
-    switch(key){
+    char btn = qkbd.read();
+    if (btn == 0) btn = kbd.read();
+    if (btn) Serial.println(btn);   
+  
+    switch(btn){
        case '1': add_code("RGWC_"); break;        
        case '2': add_code("RET_1"); break;
        case '3': add_code("RPOLK"); break;
@@ -196,20 +233,16 @@ void loop() {
        case '0': add_code("xxxxx"); break;   
        case '#': add_code("RGBRD"); break;   
     }  
-    #endif   
-    if( rfm68_tx_ival_cntr == 0){
-    
-    }
-    //RFM69_TX_IVAL_100ms 
-    // rfm68_tx_ival_cntr
+    #endif    
 }
 
 void add_code(char *new_code){
-    for(int i = 0; i < CODE-LEN; i++) {
+    int i;
+    for(i = 0; i < CODE_LEN; i++) {
         code_buff[code_wr_indx][i] = new_code[i];
         if(new_code[i] == 0) break; 
     }
-    for(; i < CODE-LEN; i++) code_buff[code_wr_indx][i] = 0;
+    for(; i < CODE_LEN; i++) code_buff[code_wr_indx][i] = 0;
     code_wr_indx = ++code_wr_indx & 0b00000111;   
 }
 
