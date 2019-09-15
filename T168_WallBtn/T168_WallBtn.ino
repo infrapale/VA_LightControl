@@ -23,9 +23,11 @@
 #define RFM69_IRQN    0  // Pin 2 is IRQ 0!
 #define RFM69_RST     9
 #define RFM69_FREQ    434.0   //915.0
-
+#define RFM69_TX_IVAL_100ms  20;
 #define LED           13  // onboard blinky
 #define MAX_BTN   6
+#define CODE_LEN  6
+#define CODE_BUFF_LEN 8
 #include <Arduino.h>
 #include <Wire.h>
 #include <RH_RF69.h>
@@ -40,39 +42,25 @@ akbd kbd(A0);
 akbd qkbd(A1);
 //led_blink leds(6,7,3,9,5,4);
 #endif
-
+char code_buff[][];  // ring buffer
+byte code_wr_indx;
+byte code_rd_indx;
 #include "PinBtn.h"
 
 //*********************************************************************************************
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 
-struct btn_struct {
-   byte pin;
-   byte state;
-   byte cntr;   
-};
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 RH_RF69 rf69(RFM69_CS, RFM69_INT);
 SimpleTimer timer;
 PinBtn butt[MAX_BTN];
 
-unit_type_entry Me ={"MH1T1","Terminal","T168","T150","T168","17v01",'0'}; //len = 9,5,5,5,9,byte
-time_type MyTime = {2017, 1,30,12,05,30}; 
-
-
 void run_10ms(void);
-void run_1000ms(void);
-void scan_btn(void);
-char rd_btn(void);
 void radiate_msg(char *rf69_msg );
 
-boolean msgReady;
-boolean SerialFlag;
-char key;
 byte tx_delay_10ms;
-byte btn_indx;
  
 void setup() {
   byte i;
@@ -85,8 +73,15 @@ void setup() {
   butt[3].Init(6,'4');
   butt[4].Init(7,'5');
   butt[5].Init(8,'6');
-  
-  btn_indx = 0;
+
+  // clear code buffer
+  for(i=0;i<CODE_BUFF_LEN; i++){
+      code_buff[i][0] = 0;
+  }
+  code_wr_indx = 0;
+  code_rd_indx = 0;
+  rfm68_tx_ival_cntr =0;
+
   #ifdef K_BTN
   kbd.begin();
   qkbd.begin();
@@ -135,7 +130,7 @@ void setup() {
   // Real time settings
   //==========================================================
   timer.setInterval(10, run_10ms);
-  timer.setInterval(1000, run_1000ms);
+  timer.setInterval(100, run_100ms);
 }
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -143,7 +138,7 @@ void setup() {
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 void loop() {
-    byte msg_indx;
+   
     char rf69_packet[20] = "";
     //byte i; 
     String r_addr;
@@ -153,16 +148,15 @@ void loop() {
     #if defined(MH1_BTN) || defined(MH2_BTN)
     // key = rd_btn();   //kbd.read();
     #endif
+    
     #ifdef K_BTN
     key = qkbd.read();
     if (key == 0) key = kbd.read();
     if (key) Serial.println(key);   
     #endif
   
-    //if (key != 0) {
-    //   Serial.print("key(hex)=");Serial.println(key,HEX);
-    //}
-    msg_indx = 0;
+    //if (key != 0) Serial.print("key(hex)=");Serial.println(key,HEX);
+   
     
     if (tx_delay_10ms == 0 ){
         char btn;
@@ -174,14 +168,14 @@ void loop() {
             //Serial.print("button= ");Serial.println(btn);
             switch(btn){
             #ifdef MH1_BTN
-            case '1': radiate_msg("RGMH1"); break;
-            case '2': radiate_msg("RMH14"); break;
-            case '3': radiate_msg("RET_1"); break;
+            case '1': add_code("RGMH1"); break;
+            case '2': add_code("RMH14"); break;
+            case '3': add_code("RET_1"); break;
             #endif
             #ifdef MH2_BTN
-            case '1': radiate_msg("RMH21"); break;
-            case '2': radiate_msg("RMH22"); break;
-            case '3': radiate_msg("RET_1"); break;             
+            case '1': add_code("RMH21"); break;
+            case '2': add_code("RMH22"); break;
+            case '3': add_code("RET_1"); break;             
             #endif
             } 
             tx_delay_10ms = 150;
@@ -189,21 +183,36 @@ void loop() {
     } 
     #ifdef K_BTN
     switch(key){
-       case '1': radiate_msg("RGWC_"); break;        
-       case '2': radiate_msg("RET_1"); break;
-       case '3': radiate_msg("RPOLK"); break;
-       case '4': radiate_msg("RGMH2"); break;     
-       case '5': radiate_msg("RPARV"); break;   
-       case '6': radiate_msg("RGMH1"); break;   
-       case '7': radiate_msg("RGKHH"); break;   
-       case '8': radiate_msg("RGTUP"); break;   
-       case '9': radiate_msg("RGKOK"); break;   
-       case '*': radiate_msg("xxxxx"); break;   
-       case '0': radiate_msg("xxxxx"); break;   
-       case '#': radiate_msg("RGBRD"); break;   
+       case '1': add_code("RGWC_"); break;        
+       case '2': add_code("RET_1"); break;
+       case '3': add_code("RPOLK"); break;
+       case '4': add_code("RGMH2"); break;     
+       case '5': add_code("RPARV"); break;   
+       case '6': add_code("RGMH1"); break;   
+       case '7': add_code("RGKHH"); break;   
+       case '8': add_code("RGTUP"); break;   
+       case '9': add_code("RGKOK"); break;   
+       case '*': add_code("xxxxx"); break;   
+       case '0': add_code("xxxxx"); break;   
+       case '#': add_code("RGBRD"); break;   
     }  
     #endif   
+    if( rfm68_tx_ival_cntr == 0){
+    
+    }
+    //RFM69_TX_IVAL_100ms 
+    // rfm68_tx_ival_cntr
 }
+
+void add_code(char *new_code){
+    for(int i = 0; i < CODE-LEN; i++) {
+        code_buff[code_wr_indx][i] = new_code[i];
+        if(new_code[i] == 0) break; 
+    }
+    for(; i < CODE-LEN; i++) code_buff[code_wr_indx][i] = 0;
+    code_wr_indx = ++code_wr_indx & 0b00000111;   
+}
+
 #define RADIO_MSG_LEN 70
 void radiate_msg( char *rf69_msg ) {
     String relay_json;
@@ -233,28 +242,7 @@ void run_10ms(void){
    #endif
    if ( tx_delay_10ms ) tx_delay_10ms--;
 }
+void run_100ms(void){
+    if(rfm68_tx_ival_cntr) rfm68_tx_ival_cntr--;
 
-void run_1000ms(){
-   if (++MyTime.second > 59 ){
-         //Smart.Send(SM_BROADCAST,"TK_R1","4=1");
-
-      MyTime.second = 0;
-      if (++MyTime.minute > 59 ){
-         MyTime.minute = 0;
-         if (++MyTime.hour > 23){
-            MyTime.hour = 0;
-         }
-      }   
-   }
-}
-
-void Blink(byte PIN, byte DELAY_MS, byte loops)
-{
-  for (byte i=0; i<loops; i++)
-  {
-    digitalWrite(PIN,HIGH);
-    delay(DELAY_MS);
-    digitalWrite(PIN,LOW);
-    delay(DELAY_MS);
-  }
 }
