@@ -16,9 +16,26 @@ void PinBtn::Init(byte pin_nbr,char val){
     cntr = 0;
     key_buff_wr_ptr = 0;
     key_buff_rd_ptr = 0;
-
+    buff_mask = Buff_mask(PRESS_BUFF_LEN);
     pinMode(pin, INPUT_PULLUP);
 };
+
+byte PinBtn::Buff_mask(byte buff_len){
+    byte mask = 0;
+    byte i=0;
+    switch(buff_len){
+        case 1:  mask = 0b00000000; break;
+        case 2:  mask = 0b00000001; break;
+        case 4:  mask = 0b00000011; break;
+        case 8:  mask = 0b00000111; break;
+        case 16: mask = 0b00001111; break;
+        default:
+            Serial.println("Incorrect buffer length @ PinBtn");
+            mask = 0b00000000; 
+            break; 
+    }
+    return mask;
+}
 
 void PinBtn::Scan(void){
 
@@ -57,7 +74,7 @@ void PinBtn::Scan(void){
      case 4:   // released, Store in buffer
           key_buff[key_buff_wr_ptr]=value;
           //Serial.println(key_buff[key_buff_wr_ptr]);
-          key_buff_wr_ptr = ++key_buff_wr_ptr & 0x03;
+          key_buff_wr_ptr = ++key_buff_wr_ptr & buff_mask;
           state = 0;
           break;
    }
@@ -71,7 +88,7 @@ char PinBtn::Read(void){
    if (key_buff[key_buff_rd_ptr]){
        btn_pressed = key_buff[key_buff_rd_ptr];
        key_buff[key_buff_rd_ptr] = 0;
-       key_buff_rd_ptr = ++key_buff_rd_ptr & 0x03;  // ring buffer
+       key_buff_rd_ptr = ++key_buff_rd_ptr & buff_mask;  // ring buffer
        //Serial.println(btn_pressed);
    }
    return(btn_pressed);
