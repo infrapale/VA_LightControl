@@ -16,34 +16,19 @@ BSD license, check license.txt for more information
 All text above, and the splash screen must be included in any redistribution
 *********************************************************************/
 
+#include "Arduino.h"
 #include <SPI.h>
+#include <FreeRTOS_SAMD21.h> //samd21
+#include "lcd_text.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_PCD8544.h>
-#include <FreeRTOS_SAMD21.h> //samd21
 
-
-// Software SPI (slower updates, more flexible pin options):
-// pin 7 - Serial clock out (SCLK)
-// pin 6 - Serial data out (DIN)
-// pin 5 - Data/Command select (D/C)
-// pin 4 - LCD chip select (CS)
-// pin 3 - LCD reset (RST)
-//Adafruit_PCD8544 display = Adafruit_PCD8544(7, 6, 5, 4, 3);
-
-// Hardware SPI (faster, but must use certain hardware pins):
-// SCK is LCD serial clock (SCLK) - this is pin 13 on Arduino Uno
-// MOSI is LCD DIN - this is pin 11 on an Arduino Uno
-// pin 5 - Data/Command select (D/C)
-// pin 4 - LCD chip select (CS)
-// pin 3 - LCD reset (RST)
 #define PCD_DC 5
 #define PCD_CS 6
 #define PCD_RST 9
 #define PCD_BL 10
-
-Adafruit_PCD8544 display = Adafruit_PCD8544(5, 6, 9);
-// Note with hardware SPI MISO and SS pins aren't used but will still be read
-// and written to during SPI transfer.  Be careful sharing these pins!
+#define PCD_ROWS 4
+#define PCD_ROW_LEN 15   // 14 characters
 
 #define  ERROR_LED_PIN  13 //Led Pin: Typical Arduino Board
 //#define  ERROR_LED_PIN  2 //Led Pin: samd21 xplained board
@@ -97,7 +82,9 @@ static void threadA( void *pvParameters )
   for(int x=0; x<20; ++x)
   {
     SERIAL.print("A");
-    myDelayMs(500);
+    lcd_text_write(2, "thread A");
+    lcd_text_show();  
+    myDelayMs(2000);
   }
   
   // delete ourselves.
@@ -117,7 +104,9 @@ static void threadB( void *pvParameters )
   while(1)
   {
     SERIAL.println("B");
-    myDelayMs(2000);
+    lcd_text_write(3, "thread B");
+    lcd_text_show();
+    myDelayMs(5000);
   }
 
 }
@@ -130,32 +119,38 @@ void taskMonitor(void *pvParameters)
 {
     int x;
     int measurement;
+    // String meas;
+    char m_array[15];
     
     SERIAL.println("Task Monitor: Started");
-
+ 
     // run this task afew times before exiting forever
     for(x=0; x<10; ++x)
     {
-
+      //LCD_Text_Write(0, "Task Monitor");
       SERIAL.println("");
       SERIAL.println("******************************");
       SERIAL.println("[Stacks Free Bytes Remaining] ");
 
       measurement = uxTaskGetStackHighWaterMark( Handle_aTask );
-      SERIAL.print("Thread A: ");
-      SERIAL.println(measurement);
+      sprintf(m_array,"Thread A: %d",measurement);
+      SERIAL.println(m_array);
+      lcd_text_write(1, m_array);
       
       measurement = uxTaskGetStackHighWaterMark( Handle_bTask );
-      SERIAL.print("Thread B: ");
-      SERIAL.println(measurement);
+      sprintf(m_array,"Thread B: %d",measurement);
+      SERIAL.println(m_array);
+      lcd_text_write(2, m_array);
       
       measurement = uxTaskGetStackHighWaterMark( Handle_monitorTask );
-      SERIAL.print("Monitor Stack: ");
-      SERIAL.println(measurement);
-
+      sprintf(m_array,"Stack: %d",measurement);
+      SERIAL.println(m_array);
+      lcd_text_write(3, m_array);
+      
       SERIAL.println("******************************");
-
+      lcd_text_show();
       myDelayMs(10000); // print every 10 seconds
+      
     }
 
     // delete ourselves.
@@ -168,39 +163,22 @@ void taskMonitor(void *pvParameters)
 
 
 
-static const unsigned char PROGMEM logo16_glcd_bmp[] =
-{ B00000000, B11000000,
-  B00000001, B11000000,
-  B00000001, B11000000,
-  B00000011, B11100000,
-  B11110011, B11100000,
-  B11111110, B11111000,
-  B01111110, B11111111,
-  B00110011, B10011111,
-  B00011111, B11111100,
-  B00001101, B01110000,
-  B00011011, B10100000,
-  B00111111, B11100000,
-  B00111111, B11110000,
-  B01111100, B11110000,
-  B01110000, B01110000,
-  B00000000, B00110000 };
+
 
 void setup()   {
   SERIAL.begin(115200);
   vNopDelayMS(1000); // prevents usb driver crash on startup, do not omit this
   while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
+  SERIAL.println("TK Light Terminal");
 
-  pinMode(PCD_BL,OUTPUT);
-  digitalWrite(PCD_BL,HIGH);
-
-  display.begin();
-  // init done
-
-  // you can change the contrast around to adapt the display
-  // for the best viewing!
-  display.setContrast(60);
-
+  lcd_text_init();
+  lcd_text_clear();
+  lcd_text_write(0,"-TK Terminal-");
+  lcd_text_write(1,"rivi 1");
+  lcd_text_write(2,"rivi 2");
+  lcd_text_write(3,"rivi 3");
+  lcd_text_show();
+ 
   vSetErrorLed(ERROR_LED_PIN, ERROR_LED_LIGHTUP_STATE);
 
   // Create the threads that will be managed by the rtos
@@ -208,7 +186,7 @@ void setup()   {
   // Also initializes a handler pointer to each task, which are important to communicate with and retrieve info from tasks
   xTaskCreate(threadA,     "Task A",       256, NULL, tskIDLE_PRIORITY + 3, &Handle_aTask);
   xTaskCreate(threadB,     "Task B",       256, NULL, tskIDLE_PRIORITY + 2, &Handle_bTask);
-  xTaskCreate(taskMonitor, "Task Monitor", 256, NULL, tskIDLE_PRIORITY + 1, &Handle_monitorTask);
+  xTaskCreate(taskMonitor, "Task Monitor", 1024, NULL, tskIDLE_PRIORITY + 1, &Handle_monitorTask);
 
   // Start the RTOS, this function will never return and will schedule the tasks.
   vTaskStartScheduler();
@@ -216,49 +194,15 @@ void setup()   {
  
 }
 
-#define PCD_ROWS 4
-#define PCD_ROW_LEN 15   // 14 characters
-int row_pos[PCD_ROWS] = {0,12, 24,36};
-int pcd_buff[PCD_ROWS][PCD_ROW_LEN];
+
+
                                 
 void loop() {
       // Optional commands, can comment/uncomment below
     SERIAL.print("."); //print out dots in terminal, we only do this when the RTOS is in the idle state
     vNopDelayMS(100);
-      display.display(); // show splashscreen
-  delay(2000);
-  display.clearDisplay();   // clears the screen and buffer
 
-
- 
-  // text display tests
-  display.setTextSize(1);
-  display.setTextColor(BLACK);
-  display.setCursor(0,0);
-  display.println("Hello, world!");
-  display.setCursor(0,12);
-  display.println("Moikka");
-  display.setCursor(0,24);
-  display.println("Moikka");
-  display.setCursor(0,36);
-  display.println("12345678901234");
-  display.display();
 }
 
-
-
-void testdrawchar(void) {
-  display.setTextSize(1);
-  display.setTextColor(BLACK);
-  display.setCursor(0,0);
-
-  for (uint8_t i=0; i < 168; i++) {
-    if (i == '\n') continue;
-    display.write(i);
-    //if ((i > 0) && (i % 14 == 0))
-      //display.println();
-  }    
-  display.display();
-}
 
  
