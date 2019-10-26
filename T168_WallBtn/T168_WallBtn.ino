@@ -255,7 +255,7 @@ void radiate_msg( char *rf69_msg ) {
     relay_json = JsonRelayString("VA",rf69_msg,"T","");
     relay_json.toCharArray(rf69_packet, RADIO_MSG_LEN);
  
-    rf69.send(rf69_packet, strlen(rf69_packet));
+    rf69.send((uint8_t*) rf69_packet, strlen(rf69_packet));
     rf69.waitPacketSent();
 }
 

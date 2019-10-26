@@ -16,15 +16,22 @@
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
 #define RFM69_CS        8
-#define RFM69_IRQN      3  // Pin 2 is IRQ 0!
+#define RFM69_IRQN      3  
 #define RFM69_RST       4
-#define RFM69_FREQ      434.0   //915.0
+#define RFM69_FREQ      434.0   
 #define RFM69_TX_IVAL_100ms  20
+
+
+#define PCD_DC    5
+#define PCD_CS    6
+#define PCD_RST   9
+#define PCD_BL    10
+
 
 TaHa task[4];
 TaHa scan_akbd_handle;
-
-LCD_Text lcd;
+//Adafruit_PCD8544 display = Adafruit_PCD8544(PCD_DC, PCD_CS, PCD_RST);
+LCD_Text lcd( PCD_DC, PCD_CS, PCD_RST, PCD_BL);
 AnalogKeys keys_1(ANALOG_KBD_COL_1_2,8,12);
 AnalogKeys keys_2(ANALOG_KBD_COL_3_4,8,12);
 RH_RF69 rf69(RFM69_CS, RFM69_IRQN);

@@ -21,6 +21,8 @@ All text above, and the splash screen must be included in any redistribution
 #include <FreeRTOS_SAMD21.h> //samd21
 #include <task.h>
 #include <queue.h>
+#include <RH_RF69.h>
+#include <Secret.h>
 #include "lcd_text.h"
 #include "json.h"
 #include "AnalogKbd.h"
@@ -51,10 +53,14 @@ All text above, and the splash screen must be included in any redistribution
 #define ANALOG_KBD_COL_1_2 1
 #define ANALOG_KBD_COL_3_4 2
 #define RADIO_MSG_LEN   60
-#define RFM69_CS        10
-#define RFM69_INT       2
-#define RFM69_IRQN      0  // Pin 2 is IRQ 0!
-#define RFM69_RST       9
+
+// Adafruit M0+RFM60 Feather:
+// #8 - used as the radio CS (chip select) pin
+// #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
+// #4 - used as the radio Reset pin
+#define RFM69_CS        8
+#define RFM69_IRQN      3  // Pin 2 is IRQ 0!
+#define RFM69_RST       4
 #define RFM69_FREQ      434.0   //915.0
 #define RFM69_TX_IVAL_100ms  20
 
@@ -62,7 +68,7 @@ void Init_RFM69(byte rfm_rst_pin,float rfm_freq);
 void RadiateMsg(char *rf69_msg );
 
 akbd kbd(ANALOG_KBD_COL_1_2,ANALOG_KBD_COL_3_4,KBD_4x4);
-RH_RF69 rf69(RFM69_CS, RFM69_INT);
+RH_RF69 rf69(RFM69_CS, RFM69_IRQN);
 //**************************************************************************
 // global variables
 //**************************************************************************
@@ -70,12 +76,16 @@ TaskHandle_t Handle_aTask;
 TaskHandle_t Handle_bTask;
 TaskHandle_t Handle_monitorTask;
 TaskHandle_t Handle_lcdQueueTask;
+TaskHandle_t Handle_radio;
+
 //**************************************************************************
 // Declare a variable of type QueueHandle_t.  This is used to store the queue
 // that is accessed by all three tasks.
 //**************************************************************************
 
 QueueHandle_t lcdQueue;
+QueueHandle_t radio_tx_Queue;
+
 unsigned int b_cnt = 0;
 //**************************************************************************
 // Can use these function for RTOS delays
@@ -104,7 +114,10 @@ void myDelayMsUntil(TickType_t *previousWakeTime, int ms)
 char tx_buff[RADIO_MSG_LEN];
 
 void send_radio(char category, char *zone,char sub_index,char command){
+    BaseType_t radio_tx_Status;
     make_json_relay_array(tx_buff, category, zone, sub_index,command);
+    radio_tx_Status = xQueueSendToBack( radio_tx_Queue, tx_buff, pdMS_TO_TICKS(1000UL));
+    radiate_msg(tx_buff);
     SERIAL.println(tx_buff);
 }
 
@@ -287,6 +300,42 @@ static void lcdQueueTask( void *pvParameters )
   }
 }
 
+static void radioTask( void *pvParameters )
+{
+    char tx_array[RADIO_MSG_LEN];
+    BaseType_t radio_tx_status;
+    /* Declare the variable that will hold the values received from the queue. */
+    const TickType_t xTicksToWait = pdMS_TO_TICKS( 100UL );
+
+  /* This task is also defined within an infinite loop. */
+  for( ;; )
+  {
+    /* As this task unblocks immediately that data is written to the queue this
+    call should always find the queue empty. */
+    if( uxQueueMessagesWaiting( radio_tx_Queue ) != 0 )
+    {
+        Serial.println( "Queue should have been empty!" );
+    }
+    //radio_tx_status = xQueueReceive( radio_tx_Queue, tx_array, pdMS_TO_TICKS( 500UL ) );
+
+    if( radio_tx_status == pdPASS )
+    {
+        radiate_msg(tx_array);
+        /* Data was successfully received from the queue, print out the received
+        value. */
+
+    }
+    else
+    {
+      /* We did not receive anything from the queue even after waiting for 100ms.
+      This must be an error as the sending tasks are free running and will be
+      continuously writing to the queue. */
+    }
+  }
+}
+
+
+
 
 
 
@@ -306,7 +355,10 @@ void setup()   {
     lcd_text_write(3,"rivi 3");
     lcd_text_show();
     kbd.begin();
-   
+
+    Init_RFM69(RFM69_RST,RFM69_FREQ);
+    radiate_msg("RFM69 test message");
+
     lcdQueue = xQueueCreate( 4, sizeof( char )*(PCD_ROW_LEN+1) );
     if( lcdQueue != NULL) 
     {
@@ -320,6 +372,7 @@ void setup()   {
         xTaskCreate(threadB,     "Task B",       256, NULL, tskIDLE_PRIORITY + 2, &Handle_bTask);
         xTaskCreate(taskMonitor, "Task Monitor", 1024, NULL, tskIDLE_PRIORITY + 1, &Handle_monitorTask);
         xTaskCreate(lcdQueueTask, "LCD Queue", 1024, NULL, tskIDLE_PRIORITY + 1, &Handle_lcdQueueTask);
+        // xTaskCreate(radioTask, "RFM 69", 2048, NULL, tskIDLE_PRIORITY + 3, &Handle_radio);
 
         // Start the RTOS, this function will never return and will schedule the tasks.
         vTaskStartScheduler();
@@ -328,8 +381,7 @@ void setup()   {
     {
         SERIAL.println("LCD queue failure");
     }
-    Init_RFM69(RFM69_RST,RFM69_FREQ);
- 
+  
 }
 
 
