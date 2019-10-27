@@ -13,20 +13,11 @@
 #define PCD_RST   9
 #define PCD_BL    10
 
+void lcd_text_init(int8_t pcd_dc, int8_t pcd_cs, int8_t pcd_rst, int8_t pcd_bl);
+void lcd_text_clear(void);
+void lcd_text_show(void);
+void lcd_text_write(byte rowNbr, char *txt);
+void lcd_text_write(byte rowNbr, String *s);
+void _write(byte rowNbr, char *txt);
 
-
-class LCD_Text {    // : public Adafruit_PCD8544 {
-    public:
-        LCD_Text(int8_t pcd_dc, int8_t pcd_cs, int8_t pcd_rst, int8_t pcd_bl);   
-        void init(void);
-        void clear(void);
-        void show(void);
-        void write(byte rowNbr, char *txt);
-        void write(byte rowNbr, String *s);
-    private:
-        void _write(byte rowNbr, char *txt);
-        const int row_pos[PCD_ROWS] = {0,12, 24,36};
-        char pcd_buff[PCD_ROWS][PCD_ROW_LEN];
-        int8_t pcd_bl;
-};
 #endif

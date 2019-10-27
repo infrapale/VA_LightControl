@@ -3,9 +3,9 @@
 #include "TaHa.h"
 #include "lcd_text.h"
 #include "AnalogKeys.h"
-#include <RH_RF69.h>
+#include "radio.h"
 #include "json.h"
-
+#include "relay_table.h"
 
 #define ANALOG_KBD_COL_1_2 1
 #define ANALOG_KBD_COL_3_4 2
@@ -30,11 +30,11 @@
 
 TaHa task[4];
 TaHa scan_akbd_handle;
+TaHa rd_akbd_handle;
 //Adafruit_PCD8544 display = Adafruit_PCD8544(PCD_DC, PCD_CS, PCD_RST);
-LCD_Text lcd( PCD_DC, PCD_CS, PCD_RST, PCD_BL);
+//LCD_Text lcd( PCD_DC, PCD_CS, PCD_RST, PCD_BL);
 AnalogKeys keys_1(ANALOG_KBD_COL_1_2,8,12);
 AnalogKeys keys_2(ANALOG_KBD_COL_3_4,8,12);
-RH_RF69 rf69(RFM69_CS, RFM69_IRQN);
 
 void setup() {
   keys_1.begin();
@@ -51,14 +51,19 @@ void setup() {
   while (!Serial); // wait until serial console is open, remove if not tethered to computer
   Serial.begin(SERIAL_BAUD);
   Serial.println("Taks Handler Test");
-  lcd.init(); 
-  lcd.clear();
+  lcd_text_init(PCD_DC, PCD_CS, PCD_RST, PCD_BL); 
+  lcd_text_clear();
+
+  // Radio rf69( RFM69_CS,RFM69_IRQN,RFM69_RST, RFM69_FREQ);      434.0   //915.0
+
+  radio_init(RFM69_CS,RFM69_IRQN,RFM69_RST, RFM69_FREQ);
   
   task[0].set_interval(500,RUN_RECURRING, task1);
   task[1].set_interval(1000,RUN_RECURRING, task2);
   task[2].set_interval(10000,RUN_ONCE, task3);
   task[3].set_interval(11000,RUN_ONCE, task4);
   scan_akbd_handle.set_interval(10,RUN_RECURRING, scan_kbd);  
+  rd_akbd_handle.set_interval(500,RUN_RECURRING, rd_kbd);  
 
 }
 
@@ -66,12 +71,14 @@ void loop() {
     // put your main code here, to run repeatedly:
     for (int i=0;i<4;i++) task[i].run();
     scan_akbd_handle.run();
+    rd_akbd_handle.run();
 }
 char tx_buff[RADIO_MSG_LEN];
 
 void send_radio(char category, char *zone,char sub_index,char command){
     make_json_relay_array(tx_buff, category, zone, sub_index,command);
-    // radiate_msg(tx_buff);
+    radio_send_msg(tx_buff);
+    void RadiateMsg(char *rf69_msg );
     Serial.println(tx_buff);
 }
 
@@ -80,17 +87,59 @@ void scan_kbd(void){
     keys_2.scan();
 }
 
-void task1(void){
+void rd_kbd(void){
     char key; 
     key = keys_1.read();
     if (!key) key = keys_2.read();
     if (key){
         String str = "Key pressed ";
         str += key;       
-        lcd.write(0,&str);
-        lcd.show();
+        lcd_text_write(0,&str);
+        lcd_text_show();
         Serial.println(str);
-    }
+ 
+        int8_t i = 0;
+        boolean found = false;
+        while(!found && i < NUMBER_RELAY_ENTRIES ){
+            if(key == key_function_table[i].key) {
+                found = true;               
+            }
+            else {
+                i++;
+            }
+        }
+        if (found){
+            send_radio( key_function_table[i].type,
+                        key_function_table[i].zone,
+                        key_function_table[i].sub_index,
+                        key_function_table[i].operation);
+
+        }
+        
+        /*
+        switch(key) {
+            case '0': send_radio('R',"ALL",'G','0'); break;
+            case '1': send_radio('R',"MH1",'1','T'); break;
+            case '2': send_radio('R',"MH2",'1','T'); break;
+            case '3': send_radio('R',"ET_",'1','T'); break;
+            case '4': send_radio('R',"MH1",'2','T'); break;
+            case '5': send_radio('R',"MH2",'2','T'); break;
+            case '6': send_radio('R',"K__",'1','T'); break;
+            case '7': send_radio('R',"K__",'2','T'); break;
+            case '8': send_radio('R',"TUP",'1','T'); break;
+            case '9': send_radio('R',"TUP",'2','T'); break;
+            case '*': send_radio('R',"ALL",'1','1'); break;
+            case '#': send_radio('R',"PAR",'1','T'); break;
+            case 'A': send_radio('R',"KHH",'1','T'); break;
+            case 'B': send_radio('R',"PSH",'1','T'); break;
+            case 'C': send_radio('R',"SAU",'1','T'); break;
+            case 'D': send_radio('R',"ULK",'1','T'); break;
+        }
+        */
+    } 
+}
+void task1(void){
+
 }
 void task2(void){
     char b[20];
@@ -99,17 +148,17 @@ void task2(void){
     a = keys_1.rd_analog();
     //Serial.println(a);
     str = String(a);
-    lcd.write(2,&str);
-    lcd.show();
+    lcd_text_write(2,&str);
+    lcd_text_show();
 }
 void task3(void){                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
     Serial.println("task_3");
     task[1].delay_task(5000);
-    lcd.write(1,"Task3");
-    lcd.show();
+    lcd_text_write(1,"Task3");
+    lcd_text_show();
 }
 void task4(void){
     Serial.println("task_4");
-    lcd.write(1,"Task4");
-    lcd.show();
+    lcd_text_write(1,"Task4");
+    lcd_text_show();
 }

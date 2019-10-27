@@ -58,10 +58,7 @@ All text above, and the splash screen must be included in any redistribution
 // #8 - used as the radio CS (chip select) pin
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
-#define RFM69_CS        8
-#define RFM69_IRQN      3  // Pin 2 is IRQ 0!
-#define RFM69_RST       4
-#define RFM69_FREQ      434.0   //915.0
+
 #define RFM69_TX_IVAL_100ms  20
 
 void Init_RFM69(byte rfm_rst_pin,float rfm_freq);
