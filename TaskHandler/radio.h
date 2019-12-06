@@ -3,11 +3,6 @@
 #include "Arduino.h"
 #include <RH_RF69.h>
 
-#define RFM69_CS        8
-#define RFM69_IRQN      3  // Pin 2 is IRQ 0!
-#define RFM69_RST       4
-#define RFM69_FREQ      434.0   //915.0
-
 struct rfm69_struct {
     RH_RF69 *rf69;
     byte rfm_cs_pin; 

@@ -54,3 +54,28 @@ void radio_send_msg( char *rf69_msg ) {
     
     rfm69.rf69->send((uint8_t*)rf69_msg, strlen(rf69_msg));
 }
+
+boolean radio_check_available_msg(){
+   return rf69.available() 
+}
+
+uint8_t rd_buf[RH_RF69_MAX_MESSAGE_LEN];
+
+boolean radio_read_mesage(char *inp_buf){
+   uint8_t len = sizeof(inp_buf);
+   boolean result = false;
+   if (radio_check_available_msg()) {
+       if (rf69.recv(inp_buf, &len)) {
+           if (len> 0){
+               inp_buf[len] = 0;
+               result = true;
+               Serial.print("Received [");
+               Serial.print(len);
+               Serial.print("]: ");
+               Serial.println((char*)buf);
+               Serial.print("RSSI: ");
+               Serial.println(rf69.lastRssi(), DEC);
+           }
+       }
+   }
+}

@@ -11,7 +11,7 @@
 #define ANALOG_KBD_COL_3_4 2
 #define RADIO_MSG_LEN   60
 
-// Adafruit M0+RFM60 Feather:
+// Adafruit M0+RFM69 Feather:
 // #8 - used as the radio CS (chip select) pin
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
@@ -21,7 +21,7 @@
 #define RFM69_FREQ      434.0   
 #define RFM69_TX_IVAL_100ms  20
 
-
+// LCD Display Adafruit_PCD8544 "Nokia 5110"
 #define PCD_DC    5
 #define PCD_CS    6
 #define PCD_RST   9
@@ -73,6 +73,7 @@ void loop() {
     scan_akbd_handle.run();
     rd_akbd_handle.run();
 }
+
 char tx_buff[RADIO_MSG_LEN];
 
 void send_radio(char category, char *zone,char sub_index,char command){

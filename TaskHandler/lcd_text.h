@@ -8,10 +8,6 @@
 #define PCD_ROWS    4
 #define PCD_ROW_LEN 15 
 
-#define PCD_DC    5
-#define PCD_CS    6
-#define PCD_RST   9
-#define PCD_BL    10
 
 void lcd_text_init(int8_t pcd_dc, int8_t pcd_cs, int8_t pcd_rst, int8_t pcd_bl);
 void lcd_text_clear(void);
