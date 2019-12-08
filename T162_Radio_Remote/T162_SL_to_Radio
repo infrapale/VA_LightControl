@@ -1,0 +1,9 @@
+@startuml
+User -> Light_key: Press
+Light_key -> Key_handler:Key pressed
+Key_handler -> Remote_controller: Toggle Light_code
+Remote_controller -> Relay_controller: Toggle light message
+Relay_controller -> Remote_controller: Acknowledge
+Remote_controller -> User: Blink OK
+ 
+@enduml
