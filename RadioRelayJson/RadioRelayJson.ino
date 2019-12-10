@@ -9,7 +9,7 @@
 // #8 - used as the radio CS (chip select) pin
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
-
+#define RADIO_ZONE_MH2
 #define RADIO_MSG_LEN   60
 #define RFM69_CS        8
 #define RFM69_INT       3
@@ -34,7 +34,9 @@ void setup() {
     radio_send_msg("RadioRelayJson");
 
     relay_dict_debug();
-}
+    uint8_t indx =  find_zone_name("MH1", "RMH12");
+    Serial.println(indx);
+  }
 
 void loop(void) {
     uint8_t i;
