@@ -10,7 +10,7 @@
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
 #define RADIO_ZONE_MH2
-#define RADIO_MSG_LEN   60
+#define RADIO_MSG_LEN   80
 #define RFM69_CS        8
 #define RFM69_INT       3
 #define RFM69_IRQN      0  // Pin 2 is IRQ 0!
@@ -30,12 +30,11 @@ void setup() {
     Serial.begin(115200);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
     Serial.println("RadioRelayJson");
-    radio_init(RFM69_CS,RFM69_IRQN,RFM69_RST, RFM69_FREQ);
+    radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
     radio_send_msg("RadioRelayJson");
 
     relay_dict_debug();
-    uint8_t indx =  find_zone_name("MH1", "RMH12");
-    Serial.println(indx);
+    
   }
 
 void loop(void) {
@@ -59,8 +58,9 @@ void loop(void) {
                 const char* sub_addr = load_json["S"];
                 const char* value = load_json["V"];
                 const char* remark = load_json["R"];
-                // Serial.println(zone);Serial.println(sub_addr);Serial.println(value);Serial.println(remark);
-
+                Serial.println(zone);Serial.println(sub_addr);Serial.println(value);Serial.println(remark);
+                uint8_t indx =  find_zone_name("zone", "sub_addr");
+                Serial.println(indx);
                 
             }
  
@@ -69,7 +69,7 @@ void loop(void) {
         }
     }
     else{
-        //Serial.print('.');
+        // Serial.print('.');
         delay(500);
     }
 

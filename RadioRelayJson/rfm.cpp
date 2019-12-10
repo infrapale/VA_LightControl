@@ -8,15 +8,15 @@ static rfm69_struct rfm69;
 
 void radio_init(byte rfm_cs_pin, byte rfm_irqn_pin, byte rfm_rst_pin,float rfm_freq)
 {   
-    //static RH_RF69 _rf69(rfm_cs_pin, rfm_irqn_pin);
-    rfm69.rfm =  new RH_RF69(rfm_cs_pin, rfm_irqn_pin);
-    rfm69.rfm_cs_pin = rfm_cs_pin;
-    rfm69.rfm_irqn_pin = rfm_irqn_pin;
-    rfm69.rfm_rst_pin = rfm_rst_pin;
-    rfm69.rfm_freq = rfm_freq;
-    pinMode(rfm69.rfm_rst_pin, OUTPUT);
-    digitalWrite(rfm69.rfm_rst_pin, LOW);
-    //rf69.RH_RF69(rfm_cs_pin, rfm_irqn_pin);
+     //static RH_RF69 _rf69(rfm_cs_pin, rfm_irqn_pin);
+     rfm69.rfm =  new RH_RF69(rfm_cs_pin, rfm_irqn_pin);
+     rfm69.rfm_cs_pin = rfm_cs_pin;
+     rfm69.rfm_irqn_pin = rfm_irqn_pin;
+     rfm69.rfm_rst_pin = rfm_rst_pin;
+     rfm69.rfm_freq = rfm_freq;
+     pinMode(rfm69.rfm_rst_pin, OUTPUT);
+     digitalWrite(rfm69.rfm_rst_pin, LOW);
+     //rf69.RH_RF69(rfm_cs_pin, rfm_irqn_pin);
 
      // manual reset
      digitalWrite(rfm69.rfm_rst_pin, HIGH);
@@ -66,7 +66,7 @@ uint8_t radio_read_msg(char *inp_buf, uint8_t max_len){
    boolean result = false;
    if (radio_check_available_msg()) {
        if (rfm69.rfm->recv(rd_buf, &len)) {
-           // Serial.print("len="); Serial.println(len);
+           //Serial.print("len="); Serial.println(len);
            uint8_t i = 0;
            do {
                inp_buf[i] = (char)rd_buf[i];
@@ -76,8 +76,8 @@ uint8_t radio_read_msg(char *inp_buf, uint8_t max_len){
             len = i;
             
             if (len> 0){
-               //Serial.print("Received ["); Serial.print(len); Serial.print("]: ");
-               //Serial.println((char*)rd_buf); Serial.print("RSSI: "); Serial.println(rfm69.rfm->lastRssi(), DEC);
+                // Serial.print("Received ["); Serial.print(len); Serial.print("]: ");
+                // Serial.println((char*)rd_buf); Serial.print("RSSI: "); Serial.println(rfm69.rfm->lastRssi(), DEC);
            }
        }       
    }
