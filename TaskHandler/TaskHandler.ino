@@ -1,6 +1,6 @@
 #define SERIAL_BAUD   9600   //115200
 #include <Arduino.h>
-#include "TaHa.h"
+#include <TaHa.h>
 #include "lcd_text.h"
 #include "AnalogKeys.h"
 #include "radio.h"

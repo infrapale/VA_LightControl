@@ -1,33 +1,41 @@
 
 #include "Arduino.h"
 #include <SPI.h>
-//#include <RH_RF69.h>
-#include "rfm.h"
-//#include <Secret.h>
+#include <rfm69_support.h>
 #include <ArduinoJson.h>
 // Adafruit M0+RFM60 Feather:
 // #8 - used as the radio CS (chip select) pin
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
+#define RADIO_ZONE_MH1
 #define RADIO_ZONE_MH2
-#define RADIO_MSG_LEN   80
-#define RFM69_CS        8
-#define RFM69_INT       3
-#define RFM69_IRQN      0  // Pin 2 is IRQ 0!
-#define RFM69_RST       4
+#define RADIO_ZONE_TK1
+
+//#define M0_RFM69    //for testing on M0-RFM69
+#define MINI_RFM69
+#ifdef  M0_RFM69
+    #define RFM69_CS        8
+    #define RFM69_INT       3
+    #define RFM69_IRQN      0  // Pin 2 is IRQ 0!
+    #define RFM69_RST       4
+#endif
+
+#ifdef  MINI_RFM69
+    #define RFM69_CS        10
+    #define RFM69_INT       2
+    #define RFM69_IRQN      0  // Pin 2 is IRQ 0!
+    #define RFM69_RST       9
+#endif
+
 #define RFM69_FREQ      434.0   //915.0
-#define RFM69_TX_IVAL_100ms  20
 
 
 
-//void Init_RFM69(byte rfm_rst_pin,float rfm_freq);
-//void RadiateMsg(char *rf69_msg );
-//RH_RF69 rf69(RFM69_CS, RFM69_IRQN);
 StaticJsonDocument<160> load_json;
 
 void setup() {
     delay(2000);
-    Serial.begin(115200);
+    Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
     Serial.println("RadioRelayJson");
     radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
@@ -59,7 +67,7 @@ void loop(void) {
                 const char* value = load_json["V"];
                 const char* remark = load_json["R"];
                 Serial.println(zone);Serial.println(sub_addr);Serial.println(value);Serial.println(remark);
-                uint8_t indx =  find_zone_name("zone", "sub_addr");
+                uint8_t indx =  find_zone_name(zone, sub_addr);
                 Serial.println(indx);
                 
             }
