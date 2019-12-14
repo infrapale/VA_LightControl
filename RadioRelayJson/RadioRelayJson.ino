@@ -3,13 +3,15 @@
 #include <SPI.h>
 #include <rfm69_support.h>
 #include <ArduinoJson.h>
+
+#include "relay_dict.h"
+#include "relay_com.h"
+
+
 // Adafruit M0+RFM60 Feather:
 // #8 - used as the radio CS (chip select) pin
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
 // #4 - used as the radio Reset pin
-#define RADIO_ZONE_MH1
-#define RADIO_ZONE_MH2
-#define RADIO_ZONE_TK1
 
 //#define M0_RFM69    //for testing on M0-RFM69
 #define MINI_RFM69
@@ -20,7 +22,7 @@
     #define RFM69_RST       4
 #endif
 
-#ifdef  MINI_RFM69
+#ifdef  MINI_RFM69  
     #define RFM69_CS        10
     #define RFM69_INT       2
     #define RFM69_IRQN      0  // Pin 2 is IRQ 0!
@@ -38,9 +40,10 @@ void setup() {
     Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
     Serial.println("RadioRelayJson");
+    Serial.println("GitHub: infrpale/VA_LightControl/RadioRelayJson 2019");
     radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
     radio_send_msg("RadioRelayJson");
-
+    InitSoftCom();
     relay_dict_debug();
     
   }
@@ -69,7 +72,9 @@ void loop(void) {
                 Serial.println(zone);Serial.println(sub_addr);Serial.println(value);Serial.println(remark);
                 uint8_t indx =  find_zone_name(zone, sub_addr);
                 Serial.println(indx);
-                
+                if (indx > 0){
+                    SendSoftcomRelayMsg(get_relay_unit(indx),get_relay_indx(indx));
+                }
             }
  
         } else {

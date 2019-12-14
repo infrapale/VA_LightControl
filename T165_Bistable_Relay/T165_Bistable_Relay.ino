@@ -12,12 +12,10 @@
 ////
 ////       Example:  <#R24=1>   relay unit = 2, relay 4, switch on 
 ///////////////////////////////////////////////////////////////////////////
-//#include <Arduino.h>
-//#include <Astrid.h>
-//#include <VillaAstrid.h>
 #include <TaHa.h> 
-// #include <SmartLoop.h>
-#include <UnitAddr.h>
+#include <SoftwareSerial.h>
+
+#define UNIT_INDX 1
 
 #define RELAY_1A 8
 #define RELAY_1B 9
@@ -33,9 +31,16 @@
 
 #define MAX_TX_LEN  80
 #define RELAY_SW_ms 50
-#define MH1
-#undef  MH2
 #define NBR_RELAYS  4 // 1,2,...n
+
+#define SOFT_RX_PIN 11
+#define SOFT_TX_PIN 10
+#define SCOM_BUFF_LEN 40
+
+SoftwareSerial softCom(SOFT_RX_PIN, SOFT_TX_PIN); 
+
+byte softComState;
+char softComBuff[SCOM_BUFF_LEN];
 
 TaHa task_10ms_handle;
 
@@ -46,12 +51,7 @@ byte relay_off_on[4][2]={
     {RELAY_4A,RELAY_4B}
       
 };
-UnitAddr unit(ADDR_PIN);
-char uAddr;
-boolean msgReady;
-float cal = 1.0;
-char rxBuff[MAX_TX_LEN];
-uint8_t cindx=0;
+uint8_t uAddr;
 
 void setup() {
    byte i;
@@ -64,24 +64,33 @@ void setup() {
    delay(2000);
    Serial.begin(9600); 
    
-   uAddr = '0';
+   Serial.println("GitHub: infrpale/VA_LightControl/T165_Bistable_Relay 2019");
+   uAddr = UNIT_INDX;
    //Serial.println(analogRead(LM336_PIN)); Serial.println(Temp_LM336_C());
-   Serial.print("Unit Address = "); Serial.print(unit.get_analog_value()); Serial.print("  "); Serial.println(uAddr);
+   //Serial.print("Unit Address = "); Serial.print(unit.get_analog_value()); Serial.print("  "); Serial.println(uAddr);
    task_10ms_handle.set_interval(10,RUN_RECURRING, run_10ms);
-
+ 
+   pinMode(SOFT_RX_PIN, INPUT);
+   pinMode(SOFT_TX_PIN, OUTPUT);
+   softCom.begin(9600);
+   softCom.listen();
 
 }
 
 void loop() {
+    Serial.println("loop");
     boolean do_continue = true;
     uint8_t cindx;
-    char unit_indx = '-';
+    uint8_t unit_indx = 0;
     char relay_indx = '-';
     char relay_function = '-';
+    cindx =0;
     while (do_continue) {
         task_10ms_handle.run();
-        if (Serial.available() >0) {
-            char c = Serial.read();  
+        if (softCom.available() >0) {
+            char c = softCom.read();  
+            Serial.print(c);
+            //Serial.println(cindx);
             switch(cindx){
                 case 0: if (c!='<') do_continue = false; break;
                 case 1: if (c!='#') do_continue = false; break;
@@ -90,17 +99,19 @@ void loop() {
                 case 4: relay_indx = c-'0'; break;
                 case 5: if (c!='=') do_continue = false; break;
                 case 6: relay_function = c; break;
-                case 7: if (c!='\r') do_continue = false; break;
-                case 8: if (c=='\n') 
+                case 7: if (c!='>') do_continue = false; break;
+                case 8: if (c!='\r') do_continue = false; break;
+                case 9: if (c=='\n') 
+                    //Serial.print("All received");Serial.print(unit_indx);Serial.println(uAddr);
                     if ((unit_indx==uAddr) &&
                        ((relay_indx >=0) && (relay_indx < NBR_RELAYS))) {
                         switch(relay_function){
                             case '0': turn_off(relay_indx); break;
                             case '1': turn_off(relay_indx); break;
                             case 'T': toggle(relay_indx);   break;
-                       } 
-                       do_continue = false; 
+                       }                       
                     }
+                    do_continue = false;
                     break;                
             }
             cindx++;

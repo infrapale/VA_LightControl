@@ -1,9 +1,5 @@
 
-#define SOFT_RX_PIN 8
-#define SOFT_TX_PIN 7
-#define SCOM_BUFF_LEN 40
-
-#include <SoftwareSerial.h>
+#include "relay_com.h"
 
 SoftwareSerial softCom(SOFT_RX_PIN, SOFT_TX_PIN); 
 
@@ -32,22 +28,23 @@ void InitSoftCom (void){
 }
 
 void SendSoftcomRelayMsg(char unit,char relay){
-    char soft_buff[8]= "";
+    char soft_buff[16]= "";
     uint8_t i= 0;
     soft_buff[i++] = '<';
-    soft_buff[i++] = '!';
+    soft_buff[i++] = '#';
     soft_buff[i++] = 'R';
     soft_buff[i++] = unit;
     soft_buff[i++] = relay;
-    soft_buff[i++] = ' ';
+    soft_buff[i++] = '=';
     soft_buff[i++] = 'T';
     soft_buff[i++] = '>';
-    soft_buff[i++] = ' ';
+    softCom.println(soft_buff);
+    Serial.println(soft_buff);
 
 
      
 }
-void SendSoftCom(char *b){
+void SendSoftCom(const char *b){
   Serial.println(b);
   softCom.print('<');
   softCom.print(b);

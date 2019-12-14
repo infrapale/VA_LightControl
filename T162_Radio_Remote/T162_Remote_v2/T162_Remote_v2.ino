@@ -107,13 +107,18 @@ void loop() {
             add_code("TK1","RTUP1"); 
             add_code("TK1","RTUP2"); 
             break;
-        case '*': add_code("MH2","RKHH1"); break;
+        case '*': 
+            add_code("MH2","RPSH1"); 
+            add_code("MH2","RKHH2");
+            break;
         case '3': 
             add_code("MH1","RKOK1"); 
             add_code("MH1","RKOK2"); 
             break;
         case '0': add_code("TK1","RPARV"); break;
-        case '8': add_code("TK1","RGWC_"); break;
+        case '8': 
+            add_code("MH2","RWC_2"); 
+            break;
         case '#': //MH1
             add_code("MH1","RMH11"); 
             add_code("MH1","RMH12"); 
@@ -169,7 +174,7 @@ void radiate_msg( char *zone, char *relay_addr ) {
 void radio_tx_hanndler(void){
     if (code_buff[code_rd_indx][0] != 0){
         radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx]);
-        Serial.print(zone_buff[code_rd_indx]); Serial.println(code_buff[code_rd_indx]);
+        //Serial.print(zone_buff[code_rd_indx]); Serial.println(code_buff[code_rd_indx]);
         code_buff[code_rd_indx][0] = 0;
         code_rd_indx = ++code_rd_indx & 0b00000111; 
         radio_send_handle.delay_task(2000);
@@ -186,7 +191,7 @@ void scan_btn(void){
 
 void run_1000ms(void){
     for (uint8_t i = 0; i < 4; i++){  
-        Serial.print(kbd.rd_analog(i));Serial.print('-');
+        //Serial.print(kbd.rd_analog(i));Serial.print('-');
     }
     Serial.println();   
 }

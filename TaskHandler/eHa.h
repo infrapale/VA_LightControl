@@ -1,4 +1,4 @@
-ifndef __EHA_H__
+#ifndef __EHA_H__
 #define __EHA_H__
 
 #define EHA_MAX_EVENT_HANDLES  4

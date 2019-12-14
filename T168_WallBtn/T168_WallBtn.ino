@@ -35,8 +35,6 @@
 #include <SPI.h>
 #include <rfm69_support.h>
 #include <TaHa.h>
-//#include <SimpleTimer.h> 
-//#include <Secret.h>
 #include <Pin_Button.h>
 
 #ifdef K_BTN
@@ -45,10 +43,10 @@ akbd kbd(A0);
 akbd qkbd(A1);
 //led_blink leds(6,7,3,9,5,4);
 #endif
-// Code buffer
+// Tasks
 TaHa scan_btn_handle;
 TaHa radio_send_handle;
-
+// Code buffer
 char code_buff[CODE_BUFF_LEN][CODE_LEN];  // ring buffer
 char zone_buff[CODE_BUFF_LEN][ZONE_LEN];  // ring buffer
 byte code_wr_indx;
@@ -92,11 +90,9 @@ void setup() {
     radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
     radio_send_msg("T168_Wall_Button");
 
-    //==========================================================
-    // Real time settings
-    //==========================================================
-   scan_btn_handle.set_interval(10,RUN_RECURRING, scan_btn);
-   radio_send_handle.set_interval(100,RUN_RECURRING, radio_tx_hanndler);
+    // ------------------Real time settings---------------------
+    scan_btn_handle.set_interval(10,RUN_RECURRING, scan_btn);
+    radio_send_handle.set_interval(100,RUN_RECURRING, radio_tx_hanndler);
 
 }
 
@@ -109,7 +105,7 @@ void loop() {
     radio_send_handle.run();
     
     //-------------------------------------------------------
-    // Read preseed buttons
+    // Read pressed buttons
     // if button is preseed add a command code to the ring buffer
     //-------------------------------------------------------
     #if defined(MH1_BTN) || defined(MH2_BTN)
