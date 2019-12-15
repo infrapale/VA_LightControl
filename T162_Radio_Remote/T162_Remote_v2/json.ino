@@ -1,4 +1,4 @@
-String JsonRelayString(char *zone, char *addr, char *value, char *remark ){
+String JsonRelayString(const char *zone, const char *addr, const char *value, const char *remark ){
     String JsonString; 
     JsonString = "{\"Z\":\"";
     JsonString += zone;

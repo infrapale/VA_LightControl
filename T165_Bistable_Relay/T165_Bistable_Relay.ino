@@ -15,7 +15,7 @@
 #include <TaHa.h> 
 #include <SoftwareSerial.h>
 
-#define UNIT_INDX 1
+#define UNIT_INDX 2
 
 #define RELAY_1A 8
 #define RELAY_1B 9
@@ -55,16 +55,20 @@ uint8_t uAddr;
 
 void setup() {
    byte i;
+
+   delay(2000);
    for (i=0;i<4;i++){
       pinMode( relay_off_on[i][0], OUTPUT); 
       pinMode( relay_off_on[i][1], OUTPUT); 
       digitalWrite(relay_off_on[i][0],LOW);
       digitalWrite(relay_off_on[i][1],LOW);
    }
-   delay(2000);
+   InitRelays();
+   uAddr = UNIT_INDX;
    Serial.begin(9600); 
-   
+   Serial.println();
    Serial.println("GitHub: infrpale/VA_LightControl/T165_Bistable_Relay 2019");
+   Serial.print("Unit addr= "); Serial.println(uAddr);
    uAddr = UNIT_INDX;
    //Serial.println(analogRead(LM336_PIN)); Serial.println(Temp_LM336_C());
    //Serial.print("Unit Address = "); Serial.print(unit.get_analog_value()); Serial.print("  "); Serial.println(uAddr);
@@ -73,7 +77,7 @@ void setup() {
    pinMode(SOFT_RX_PIN, INPUT);
    pinMode(SOFT_TX_PIN, OUTPUT);
    softCom.begin(9600);
-   softCom.listen();
+   //softCom.listen();
 
 }
 
@@ -86,6 +90,7 @@ void loop() {
     char relay_function = '-';
     cindx =0;
     while (do_continue) {
+        //Serial.print(cindx);
         task_10ms_handle.run();
         if (softCom.available() >0) {
             char c = softCom.read();  
@@ -102,9 +107,9 @@ void loop() {
                 case 7: if (c!='>') do_continue = false; break;
                 case 8: if (c!='\r') do_continue = false; break;
                 case 9: if (c=='\n') 
-                    //Serial.print("All received");Serial.print(unit_indx);Serial.println(uAddr);
+                    Serial.print("All received");Serial.print(unit_indx);Serial.println(uAddr);
                     if ((unit_indx==uAddr) &&
-                       ((relay_indx >=0) && (relay_indx < NBR_RELAYS))) {
+                       ((relay_indx >=0) && (relay_indx <= NBR_RELAYS))) {
                         switch(relay_function){
                             case '0': turn_off(relay_indx); break;
                             case '1': turn_off(relay_indx); break;

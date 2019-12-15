@@ -17,17 +17,11 @@ void InitSoftCom (void){
   pinMode(SOFT_RX_PIN, INPUT);
   pinMode(SOFT_TX_PIN, OUTPUT);
   softCom.begin(9600);
+  //softCom.listen();
   
-  //softComState = 0;
-  //softComBuffIndx =0;
-  //for (i=0;i<SCOM_BUFF_LEN;i++){
-  //  softComBuff[i]= '0'+i;
-  //}
-  softCom.listen();
-  //softComFlag = false;
 }
 
-void SendSoftcomRelayMsg(char unit,char relay){
+void SendSoftcomRelayMsg(char unit,char relay,char func){
     char soft_buff[16]= "";
     uint8_t i= 0;
     soft_buff[i++] = '<';
@@ -36,7 +30,7 @@ void SendSoftcomRelayMsg(char unit,char relay){
     soft_buff[i++] = unit;
     soft_buff[i++] = relay;
     soft_buff[i++] = '=';
-    soft_buff[i++] = 'T';
+    soft_buff[i++] = func;
     soft_buff[i++] = '>';
     softCom.println(soft_buff);
     Serial.println(soft_buff);

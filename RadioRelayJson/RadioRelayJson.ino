@@ -73,7 +73,7 @@ void loop(void) {
                 uint8_t indx =  find_zone_name(zone, sub_addr);
                 Serial.println(indx);
                 if (indx > 0){
-                    SendSoftcomRelayMsg(get_relay_unit(indx),get_relay_indx(indx));
+                    SendSoftcomRelayMsg(get_relay_unit(indx),get_relay_indx(indx),value[0]);
                 }
             }
  

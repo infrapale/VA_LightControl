@@ -8,7 +8,7 @@ struct relay_status_struct {
 
 relay_status_struct relay_status[NBR_RELAYS]; 
 
-void Init(void){
+void InitRelays(void){
    byte i;
    for(i=0;i<NBR_RELAYS;i++){
       relay_status[i].is_on = false; 
@@ -17,18 +17,18 @@ void Init(void){
 };
 
 void turn_on(byte relay_indx) {
-      relay_status[relay_indx].is_on = true; 
-      relay_status[relay_indx].cntr_10ms = SWITCH_TIME_x10ms; 
+      relay_status[relay_indx-1].is_on = true; 
+      relay_status[relay_indx-1].cntr_10ms = SWITCH_TIME_x10ms; 
 };
 void turn_off(byte relay_indx) {
-      relay_status[relay_indx].is_on = false; 
-      relay_status[relay_indx].cntr_10ms = SWITCH_TIME_x10ms; 
+      relay_status[relay_indx-1].is_on = false; 
+      relay_status[relay_indx-1].cntr_10ms = SWITCH_TIME_x10ms; 
 };
 
 void toggle(byte relay_indx) {
-      //Serial.print("Toggle: "); Serial.println(relay_indx);
-      relay_status[relay_indx].is_on = ! relay_status[relay_indx].is_on; 
-      relay_status[relay_indx].cntr_10ms = SWITCH_TIME_x10ms; 
+      Serial.print("Toggle: "); Serial.println(relay_indx-1);
+      relay_status[relay_indx-1].is_on = ! relay_status[relay_indx-1].is_on; 
+      relay_status[relay_indx-1].cntr_10ms = SWITCH_TIME_x10ms; 
 };
 
 void do_every_10ms(void){

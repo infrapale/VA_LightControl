@@ -20,7 +20,9 @@
 
 #define CODE_LEN      6
 #define ZONE_LEN      4
-#define CODE_BUFF_LEN 8
+#define FUNC_LEN      4
+#define CODE_BUFF_LEN 32
+#define CODE_BUFF_LEN_MASK 0b00011111;
 
 
 #include <Arduino.h>
@@ -46,9 +48,11 @@ TaHa task_1000ms_handle;
 // Code buffer
 char code_buff[CODE_BUFF_LEN][CODE_LEN];  // ring buffer
 char zone_buff[CODE_BUFF_LEN][ZONE_LEN];  // ring buffer
+char func_buff[CODE_BUFF_LEN][FUNC_LEN];
 byte code_wr_indx;
 byte code_rd_indx;
 
+void all_off(void);
 
 void setup() {
     byte i;
@@ -65,6 +69,7 @@ void setup() {
     for(i=0;i<CODE_BUFF_LEN; i++){
         code_buff[i][0] = 0;
         zone_buff[i][0] = 0;
+        func_buff[i][0] = 0;
     }
     code_wr_indx = 0;
     code_rd_indx = 0;
@@ -74,7 +79,7 @@ void setup() {
     
     // ------------------Real time settings---------------------
     scan_btn_handle.set_interval(10,RUN_RECURRING, scan_btn);
-    radio_send_handle.set_interval(100,RUN_RECURRING, radio_tx_hanndler);
+    radio_send_handle.set_interval(100,RUN_RECURRING, radio_tx_handler);
     task_1000ms_handle.set_interval(1000,RUN_RECURRING, run_1000ms);
 }
 
@@ -95,51 +100,79 @@ void loop() {
         Serial.print("key(hex)=");Serial.println(key,HEX);
         msg_indx = 0;
         switch(key){
-        case '7': add_code("TK1","RLH_1"); break;
-        case '4': add_code("TK1","RPOLK"); break;
-        case '1': add_code("TK1","RTERA"); break;
+        case '7': add_code("TK1","RLH_1","T"); break;
+        case '4': add_code("TK1","RPOLK","T"); break;
+        case '1': add_code("TK1","RTERA","T"); break;
         case '5': 
-            add_code("MH1","RKOK3"); 
-            add_code("MH1","RKOK4"); 
+            add_code("MH1","RKOK3","T"); 
+            add_code("MH1","RKOK4","T"); 
+            add_code("MH1","RKOK5","T"); 
             break;
  
         case '2': 
-            add_code("TK1","RTUP1"); 
-            add_code("TK1","RTUP2"); 
+            add_code("TK1","RTUP1","T"); 
+            add_code("TK1","RTUP2","T"); 
             break;
         case '*': 
-            add_code("MH2","RPSH1"); 
-            add_code("MH2","RKHH2");
+            add_code("MH2","RPSH1","T"); 
+            add_code("MH2","RKHH2","T");
             break;
         case '3': 
-            add_code("MH1","RKOK1"); 
-            add_code("MH1","RKOK2"); 
+            add_code("MH1","RKOK1","T"); 
+            add_code("MH1","RKOK2","T"); 
             break;
-        case '0': add_code("TK1","RPARV"); break;
+        case '0': add_code("TK1","RPARV","T"); break;
         case '8': 
-            add_code("MH2","RWC_2"); 
+            add_code("MH2","RWC_2","T"); 
             break;
         case '#': //MH1
-            add_code("MH1","RMH11"); 
-            add_code("MH1","RMH12"); 
-            add_code("MH1","RMH13"); 
-            add_code("MH1","RMH14"); 
+            add_code("MH1","RMH11","T"); 
+            add_code("MH1","RMH12","T"); 
+            add_code("MH1","RMH13","T"); 
+            //add_code("MH1","RMH14","T"); 
             break;
-        case '9': add_code("MH2","RET_1"); break;
+        case '9': add_code("MH2","RET_1","T"); break;
         case '6': 
-            add_code("MH2","RMH21"); 
-            add_code("MH2","RMH22"); 
-            add_code("MH2","RMH23"); 
+            add_code("MH2","RMH21","T"); 
+            add_code("MH2","RMH22","T"); 
+            //add_code("MH2","RMH23","T"); 
             break;
-        case 'C': add_code("TK1","RPIHA"); break;
-        case 'B': add_code("TK1","RTK_1"); break;
-        case 'A': add_code("TK1","AUTO1"); break;
+        case 'C': add_code("TK1","RPIHA","T"); break;
+        case 'B': add_code("TK1","RTK_1","T"); break;
+        case 'A': all_off(); break;
         } 
     }  
 }
 
+void all_off(){
+    add_code("TK1","RLH_1","0"); 
+    add_code("TK1","RPOLK","0"); 
+    add_code("TK1","RTERA","0"); 
+    add_code("MH1","RKOK3","0"); 
+    add_code("MH1","RKOK4","0"); 
+    add_code("MH1","RKOK5","0"); 
+    add_code("TK1","RTUP1","0"); 
+    add_code("TK1","RTUP2","0"); 
+    add_code("MH2","RPSH1","0"); 
+    add_code("MH2","RKHH2","0");
+    add_code("MH1","RKOK1","0"); 
+    add_code("MH1","RKOK2","0"); 
+    add_code("TK1","RPARV","0"); 
+    add_code("MH2","RWC_2","0"); 
+    add_code("MH1","RMH11","0"); 
+    add_code("MH1","RMH12","0"); 
+    add_code("MH1","RMH13","0"); 
+    add_code("MH1","RMH14","0"); 
+    add_code("MH2","RET_1","0"); 
+    add_code("MH2","RMH21","0"); 
+    add_code("MH2","RMH22","0"); 
+    add_code("TK1","RPIHA","0"); 
+    add_code("TK1","RTK_1","0"); 
+} 
+  
 
-void add_code(char *new_zone, char *new_code){
+
+void add_code(const char *new_zone, const char *new_code, const char *new_func){
     int i;
     for(i = 0; i < CODE_LEN; i++) {
         if (new_code[i] != 0) { 
@@ -157,13 +190,21 @@ void add_code(char *new_zone, char *new_code){
            zone_buff[code_wr_indx][i] =0;
         }   
     }
-
-    code_wr_indx = ++code_wr_indx & 0b00000111;   
+    for(i = 0; i < FUNC_LEN; i++) {
+        if (new_func[i] != 0) { 
+            func_buff[code_wr_indx][i] = new_func[i];
+        } 
+        else {
+           func_buff[code_wr_indx][i] =0;
+        }   
+    }
+ 
+    code_wr_indx = ++code_wr_indx & CODE_BUFF_LEN_MASK;   
 }
 
-void radiate_msg( char *zone, char *relay_addr ) {
+void radiate_msg( char *zone, char *relay_addr, char *func ) {
     digitalWrite(LED_RED, LOW); 
-    String relay_json = JsonRelayString(zone, relay_addr, "T", "" );
+    String relay_json = JsonRelayString(zone, relay_addr, func, "" );
     char rf69_packet[RH_RF69_MAX_MESSAGE_LEN] = "";
     relay_json.toCharArray(rf69_packet, RH_RF69_MAX_MESSAGE_LEN);
     radio_send_msg(rf69_packet);
@@ -171,12 +212,12 @@ void radiate_msg( char *zone, char *relay_addr ) {
     digitalWrite(LED_RED, HIGH); 
 }
 
-void radio_tx_hanndler(void){
+void radio_tx_handler(void){
     if (code_buff[code_rd_indx][0] != 0){
-        radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx]);
+        radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx],func_buff[code_rd_indx]);
         //Serial.print(zone_buff[code_rd_indx]); Serial.println(code_buff[code_rd_indx]);
         code_buff[code_rd_indx][0] = 0;
-        code_rd_indx = ++code_rd_indx & 0b00000111; 
+        code_rd_indx = ++code_rd_indx & CODE_BUFF_LEN_MASK; 
         radio_send_handle.delay_task(2000);
     }
 }
@@ -193,7 +234,7 @@ void run_1000ms(void){
     for (uint8_t i = 0; i < 4; i++){  
         //Serial.print(kbd.rd_analog(i));Serial.print('-');
     }
-    Serial.println();   
+    //Serial.println();   
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops)

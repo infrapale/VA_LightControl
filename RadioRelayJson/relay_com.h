@@ -10,7 +10,7 @@
 
 boolean SoftComFlag(void);
 void InitSoftCom (void);
-void SendSoftcomRelayMsg(char unit,char relay);
+void SendSoftcomRelayMsg(char unit,char relay,char func);
 void SendSoftCom(const char *b);
 void DebugSoftCom(void);
 #endif

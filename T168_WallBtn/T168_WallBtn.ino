@@ -1,6 +1,6 @@
-#define MH1_BTN
+//#define MH1_BTN
 //#define MH2_BTN
-//#define K_BTN
+#define K_BTN
 //#define TK_RELAY
 
 #define MENU_DATA
@@ -28,7 +28,8 @@
 #define MAX_BTN       6
 #define CODE_LEN      6
 #define ZONE_LEN      4
-#define CODE_BUFF_LEN 8
+#define CODE_BUFF_LEN 32
+#define CODE_BUFF_LEN_MASK 0b00011111;
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -115,11 +116,6 @@ void loop() {
          maxi_terminals();
     #endif
         
-    #ifdef K_BTN
-    btn = qkbd.read();
-    if (btn == 0) btn = kbd.read();
-    if (btn) Serial.println(btn);   
-    #endif
 }
 
 
@@ -164,37 +160,48 @@ void maxi_terminals(void){
     if (btn) Serial.println(btn);   
   
     switch(btn){
-       case '1': add_code("TK1","RWC_1"); 
+       case '1': add_code("MH2","RWC_2"); 
                  break;        
        case '2': add_code("MH2","RET_1"); 
                  break;
        case '3': add_code("TK1","RPOLK"); 
                  break;
        case '4': add_code("MH2","RMH21"); 
-                 add_code("MH2","RMH22");                  
+                 add_code("MH2","RMH22"); 
                  break;     
        case '5': add_code("TK1","RPARV"); 
                  break;   
        case '6': add_code("MH1","RMH11"); 
                  add_code("MH1","RMH12"); 
+                 add_code("MH1","RMH13"); 
                  break;   
-       case '7': add_code("TK1","RGKHH"); 
+       case '7': add_code("MH2","RKHH2"); 
+                 add_code("MH2","RPSH1");
                  break;   
        case '8': add_code("TK1","RTUP1"); 
                  add_code("TK1","RTUP2");
                  break;   
        case '9': add_code("MH1","RKOK1"); 
                  add_code("MH1","RKOK2"); 
-                 break;   
+                 add_code("MH1","RKOK3"); 
+                 add_code("MH1","RKOK4"); 
+                 add_code("MH1","RKOK5"); 
+                  break;   
        case '*': add_code("MH1","xxxxx"); break;   
-       case '0': add_code("MH1","xxxxx"); break;   
-       case '#': add_code("MH1","RGBRD"); break;   
+       case '0': add_code("MH1","OFF__"); 
+                 add_code("MH2","OFF__");
+                 add_code("TK1","OFF__");
+                 break;   
+       case '#': add_code("MH1","RKOK3"); 
+                 add_code("MH1","RKOK4"); 
+                 add_code("MH1","RKOK5"); 
+                 break;   
     }  
     #endif    
 }
 
 
-void add_code(char *new_zone, char *new_code){
+void add_code(const char *new_zone, const char *new_code){
     int i;
     for(i = 0; i < CODE_LEN; i++) {
         if (new_code[i] != 0) { 
@@ -213,10 +220,10 @@ void add_code(char *new_zone, char *new_code){
         }   
     }
 
-    code_wr_indx = ++code_wr_indx & 0b00000111;   
+    code_wr_indx = ++code_wr_indx & CODE_BUFF_LEN_MASK;   
 }
 
-void radiate_msg( char *zone, char *relay_addr ) {
+void radiate_msg( const char *zone, const char *relay_addr ) {
     String relay_json = JsonRelayString(zone, relay_addr, "T", "" );
     char rf69_packet[RH_RF69_MAX_MESSAGE_LEN] = "";
     relay_json.toCharArray(rf69_packet, RH_RF69_MAX_MESSAGE_LEN);
@@ -229,7 +236,7 @@ void radio_tx_hanndler(void){
         radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx]);
         Serial.print(zone_buff[code_rd_indx]); Serial.println(code_buff[code_rd_indx]);
         code_buff[code_rd_indx][0] = 0;
-        code_rd_indx = ++code_rd_indx & 0b00000111; 
+        code_rd_indx = ++code_rd_indx & CODE_BUFF_LEN_MASK; 
         radio_send_handle.delay_task(2000);
     }
 }
