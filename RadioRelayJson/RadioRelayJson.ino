@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <rfm69_support.h>
 #include <ArduinoJson.h>
+#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
 #include "relay_dict.h"
 #include "relay_com.h"
@@ -36,7 +37,10 @@
 StaticJsonDocument<160> load_json;
 
 void setup() {
+    wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
     delay(2000);
+    wdt_enable(WDTO_2S);  /* Enable the watchdog with a timeout of 2 seconds */
+
     Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
     Serial.println("RadioRelayJson");
@@ -50,6 +54,8 @@ void setup() {
 
 void loop(void) {
     uint8_t i;
+    char r_unit;
+    wdt_reset();
     if (radio_check_available_msg()) {
         Serial.print("! available!");
         // Should be a message for us now   
@@ -73,8 +79,11 @@ void loop(void) {
                 uint8_t indx =  find_zone_name(zone, sub_addr);
                 Serial.println(indx);
                 if (indx > 0){
-                    SendSoftcomRelayMsg(get_relay_unit(indx),get_relay_indx(indx),value[0]);
-                }
+                    r_unit = get_relay_unit(indx);
+                    if (((r_unit > '0') && (r_unit < 9)) || (r_unit == '*')){
+                        SendSoftcomRelayMsg(get_relay_unit(indx),get_relay_indx(indx),value[0]);
+                    }
+                } 
             }
  
         } else {
@@ -83,7 +92,6 @@ void loop(void) {
     }
     else{
         // Serial.print('.');
-        delay(500);
     }
 
 }

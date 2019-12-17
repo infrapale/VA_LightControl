@@ -34,6 +34,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
+#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 #include <rfm69_support.h>
 #include <TaHa.h>
 #include <Pin_Button.h>
@@ -63,9 +64,10 @@ PinBtn butt[MAX_BTN];
  
 void setup() {
     byte i;
+    wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
     while (!Serial); // wait until serial console is open, remove if not tethered to computer
     Serial.begin(SERIAL_BAUD);
-  
+    dt_enable(WDTO_2S);
     butt[0].Init(3,'1');
     butt[1].Init(4,'2');
     butt[2].Init(5,'3');
@@ -102,9 +104,10 @@ void setup() {
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 void loop() {
+  
     scan_btn_handle.run();
     radio_send_handle.run();
-    
+    wdt_reset();
     //-------------------------------------------------------
     // Read pressed buttons
     // if button is preseed add a command code to the ring buffer
