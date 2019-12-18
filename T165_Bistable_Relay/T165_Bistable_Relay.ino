@@ -79,8 +79,12 @@ void setup() {
     pinMode(SOFT_RX_PIN, INPUT);
     pinMode(SOFT_TX_PIN, OUTPUT);
     softCom.begin(9600);
-   //softCom.listen();
-
+    softCom.listen();
+    if(softCom.isListening()){
+        Serial.println("softCom is listening"); 
+    } else {
+        Serial.println("softCom is NOT listening"); 
+    }   
 }
 
 void loop() {
@@ -92,10 +96,12 @@ void loop() {
     char relay_function = '-';
     cindx =0;
     while (do_continue) {
+        Serial.println("loop in while");
         //Serial.print(cindx);
         wdt_reset();
         task_10ms_handle.run();
         if (softCom.available() >0) {
+            Serial.println("loop in if");
             char c = softCom.read();  
             Serial.print(c);
             //Serial.println(cindx);
@@ -131,7 +137,7 @@ void loop() {
             }
             cindx++;
             if (cindx > MAX_TX_LEN -2) do_continue = false;              
-        }
+        } else delay(1000);
     }
 }
 
