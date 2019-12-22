@@ -76,9 +76,11 @@ void setup() {
     //Serial.print("Unit Address = "); Serial.print(unit.get_analog_value()); Serial.print("  "); Serial.println(uAddr);
     task_10ms_handle.set_interval(10,RUN_RECURRING, run_10ms);
  
-    pinMode(SOFT_RX_PIN, INPUT);
+    pinMode(SOFT_RX_PIN, INPUT_PULLUP);
     pinMode(SOFT_TX_PIN, OUTPUT);
     softCom.begin(9600);
+
+    
     softCom.listen();
     if(softCom.isListening()){
         Serial.println("softCom is listening"); 
@@ -118,7 +120,7 @@ void loop() {
                 case 9: if (c=='\n') 
                     Serial.print("All received");Serial.print(unit_indx);Serial.println(uAddr);
                     if ((unit_indx==uAddr+'0') || unit_indx == '*') {
-                        if((relay_indx >=0) && (relay_indx <= NBR_RELAYS)) {
+                        if((relay_indx >=0+'0') && (relay_indx <= NBR_RELAYS+'0')) {
                             switch(relay_function){
                                 case '0': turn_off(relay_indx-'0'); break;
                                 case '1': turn_off(relay_indx-'0'); break;
@@ -128,7 +130,7 @@ void loop() {
                          }                       
                     }
                     if ( unit_indx == '*') {
-                        if (relay_indx == '-'){
+                        if (relay_indx == '0'){
                             turn_all_off();
                         }
                     }
@@ -137,7 +139,7 @@ void loop() {
             }
             cindx++;
             if (cindx > MAX_TX_LEN -2) do_continue = false;              
-        } else delay(1000);
+        }
     }
 }
 

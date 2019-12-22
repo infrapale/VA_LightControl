@@ -1,5 +1,6 @@
 
 #define SWITCH_TIME_x10ms 5
+#define DELAY_BTW_RELAY 1000
 
 struct relay_status_struct {
    boolean is_on;
@@ -37,7 +38,7 @@ void turn_all_off(void){
    for (i=0;i<NBR_RELAYS;i++){
        relay_status[i].is_on = false; 
        relay_status[i].cntr_10ms = SWITCH_TIME_x10ms;
-       relay_status[i].delay_10ms = SWITCH_TIME_x10ms * i;
+       relay_status[i].delay_10ms = DELAY_BTW_RELAY * i;
 
    }
 }

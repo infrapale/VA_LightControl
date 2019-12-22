@@ -1,6 +1,6 @@
-//#define MH1_BTN
+#define MH1_BTN
 //#define MH2_BTN
-#define K_BTN
+//#define K_BTN
 //#define TK_RELAY
 
 #define MENU_DATA
@@ -28,6 +28,7 @@
 #define MAX_BTN       6
 #define CODE_LEN      6
 #define ZONE_LEN      4
+#define FUNC_LEN      4
 #define CODE_BUFF_LEN 32
 #define CODE_BUFF_LEN_MASK 0b00011111;
 
@@ -38,6 +39,7 @@
 #include <rfm69_support.h>
 #include <TaHa.h>
 #include <Pin_Button.h>
+#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
 #ifdef K_BTN
 #include <akbd.h>
@@ -51,6 +53,7 @@ TaHa radio_send_handle;
 // Code buffer
 char code_buff[CODE_BUFF_LEN][CODE_LEN];  // ring buffer
 char zone_buff[CODE_BUFF_LEN][ZONE_LEN];  // ring buffer
+char func_buff[CODE_BUFF_LEN][FUNC_LEN];
 byte code_wr_indx;
 byte code_rd_indx;
 
@@ -64,10 +67,12 @@ PinBtn butt[MAX_BTN];
  
 void setup() {
     byte i;
+    
     wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
+    delay(2000);
     while (!Serial); // wait until serial console is open, remove if not tethered to computer
     Serial.begin(SERIAL_BAUD);
-    dt_enable(WDTO_2S);
+    wdt_enable(WDTO_2S);
     butt[0].Init(3,'1');
     butt[1].Init(4,'2');
     butt[2].Init(5,'3');
@@ -139,17 +144,14 @@ void mini_terminals(void){
         //Serial.print("button= ");Serial.println(btn);
         switch(btn){
             #ifdef MH1_BTN
-            case '1': add_code("MH1","RMH11"); 
-                      add_code("MH1","RMH12"); 
-                      add_code("MH1","RMH13"); 
-                      break;
-            case '2': add_code("MH1","RMH14"); break;
-            case '3': add_code("MH2","RET_1"); break;
+            case '1': add_code("MH1","RMH11","T"); break;
+            case '2': add_code("MH1","RMH12","T"); break;
+            case '3': add_code("MH1","RMH13","T"); break;
             #endif
             #ifdef MH2_BTN
-            case '1': add_code("MH2","RMH21"); break;
-            case '2': add_code("MH2","RMH22"); break;
-            case '3': add_code("MH2","RET_1"); break;  
+            case '1': add_code("MH2","RMH21","T"); break;
+            case '2': add_code("MH2","RMH22","T"); break;
+            case '3': add_code("MH2","RET_1","T"); break;  
             #endif
         }           
        
@@ -163,48 +165,48 @@ void maxi_terminals(void){
     if (btn) Serial.println(btn);   
   
     switch(btn){
-       case '1': add_code("MH2","RWC_2"); 
+       case '1': add_code("MH2","RWC_2","T"); 
                  break;        
-       case '2': add_code("MH2","RET_1"); 
+       case '2': add_code("MH2","RET_1","T"); 
                  break;
-       case '3': add_code("TK1","RPOLK"); 
+       case '3': add_code("TK1","RPOLK","T"); 
                  break;
-       case '4': add_code("MH2","RMH21"); 
-                 add_code("MH2","RMH22"); 
+       case '4': add_code("MH2","RMH21","T"); 
+                 add_code("MH2","RMH22","T"); 
                  break;     
-       case '5': add_code("TK1","RPARV"); 
+       case '5': add_code("TK1","RPARV","T"); 
                  break;   
-       case '6': add_code("MH1","RMH11"); 
-                 add_code("MH1","RMH12"); 
-                 add_code("MH1","RMH13"); 
+       case '6': add_code("MH1","RMH11","T"); 
+                 add_code("MH1","RMH12","T"); 
+                 add_code("MH1","RMH13","T"); 
                  break;   
-       case '7': add_code("MH2","RKHH2"); 
-                 add_code("MH2","RPSH1");
+       case '7': add_code("MH2","RKHH2","T"); 
+                 add_code("MH2","RPSH1","T");
                  break;   
-       case '8': add_code("TK1","RTUP1"); 
-                 add_code("TK1","RTUP2");
+       case '8': add_code("TK1","RTUP1","T"); 
+                 add_code("TK1","RTUP2","T");
                  break;   
-       case '9': add_code("MH1","RKOK1"); 
-                 add_code("MH1","RKOK2"); 
-                 add_code("MH1","RKOK3"); 
-                 add_code("MH1","RKOK4"); 
-                 add_code("MH1","RKOK5"); 
+       case '9': add_code("MH1","RKOK1","T"); 
+                 add_code("MH1","RKOK2","T"); 
+                 add_code("MH1","RKOK3","T"); 
+                 add_code("MH1","RKOK4","T"); 
+                 add_code("MH1","RKOK5","T"); 
                   break;   
-       case '*': add_code("MH1","xxxxx"); break;   
-       case '0': add_code("MH1","OFF__"); 
-                 add_code("MH2","OFF__");
-                 add_code("TK1","OFF__");
+       case '*': add_code("MH1","xxxxx","T"); break;   
+       case '0': add_code("MH1","*.OFF","0"); 
+                 add_code("MH2","*.OFF","0");
+                 add_code("TK1","*.OFF","0");
                  break;   
-       case '#': add_code("MH1","RKOK3"); 
-                 add_code("MH1","RKOK4"); 
-                 add_code("MH1","RKOK5"); 
+       case '#': add_code("MH1","RKOK3","T"); 
+                 add_code("MH1","RKOK4","T"); 
+                 add_code("MH1","RKOK5","T"); 
                  break;   
     }  
     #endif    
 }
 
 
-void add_code(const char *new_zone, const char *new_code){
+void add_code(const char *new_zone, const char *new_code, const char *new_func){
     int i;
     for(i = 0; i < CODE_LEN; i++) {
         if (new_code[i] != 0) { 
@@ -222,12 +224,21 @@ void add_code(const char *new_zone, const char *new_code){
            zone_buff[code_wr_indx][i] =0;
         }   
     }
+    for(i = 0; i < FUNC_LEN; i++) {
+        if (new_func[i] != 0) { 
+            func_buff[code_wr_indx][i] = new_func[i];
+        } 
+        else {
+           func_buff[code_wr_indx][i] =0;
+        }   
+    }
+ 
 
     code_wr_indx = ++code_wr_indx & CODE_BUFF_LEN_MASK;   
 }
 
-void radiate_msg( const char *zone, const char *relay_addr ) {
-    String relay_json = JsonRelayString(zone, relay_addr, "T", "" );
+void radiate_msg( const char *zone, const char *relay_addr, char *func ) {
+    String relay_json = JsonRelayString(zone, relay_addr, func, "" );
     char rf69_packet[RH_RF69_MAX_MESSAGE_LEN] = "";
     relay_json.toCharArray(rf69_packet, RH_RF69_MAX_MESSAGE_LEN);
     radio_send_msg(rf69_packet);
@@ -236,7 +247,7 @@ void radiate_msg( const char *zone, const char *relay_addr ) {
 
 void radio_tx_hanndler(void){
     if (code_buff[code_rd_indx][0] != 0){
-        radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx]);
+        radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx],func_buff[code_rd_indx]);
         Serial.print(zone_buff[code_rd_indx]); Serial.println(code_buff[code_rd_indx]);
         code_buff[code_rd_indx][0] = 0;
         code_rd_indx = ++code_rd_indx & CODE_BUFF_LEN_MASK; 

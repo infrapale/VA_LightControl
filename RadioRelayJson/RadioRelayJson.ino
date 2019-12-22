@@ -80,7 +80,7 @@ void loop(void) {
                 Serial.println(indx);
                 if (indx > 0){
                     r_unit = get_relay_unit(indx);
-                    if (((r_unit > '0') && (r_unit < 9)) || (r_unit == '*')){
+                    if (((r_unit > '0') && (r_unit < '9')) || (r_unit == '*')){
                         SendSoftcomRelayMsg(get_relay_unit(indx),get_relay_indx(indx),value[0]);
                     }
                 } 

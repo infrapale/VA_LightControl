@@ -14,7 +14,7 @@ boolean SoftComFlag(void){
 }
 
 void InitSoftCom (void){
-  pinMode(SOFT_RX_PIN, INPUT);
+  pinMode(SOFT_RX_PIN, INPUT_PULLUP);
   pinMode(SOFT_TX_PIN, OUTPUT);
   softCom.begin(9600);
   //softCom.listen();
@@ -33,6 +33,7 @@ void SendSoftcomRelayMsg(char unit,char relay,char func){
     soft_buff[i++] = func;
     soft_buff[i++] = '>';
     softCom.println(soft_buff);
+    Serial.print("SendSoftcomRelayMsg: ");
     Serial.println(soft_buff);
 
 

@@ -92,7 +92,7 @@ void loop() {
   
     scan_btn_handle.run();
     radio_send_handle.run();
-    task_1000ms_handle.run();
+    //task_1000ms_handle.run();
 
  
     key = kbd.read();
@@ -145,29 +145,9 @@ void loop() {
 }
 
 void all_off(){
-    add_code("TK1","RLH_1","0"); 
-    add_code("TK1","RPOLK","0"); 
-    add_code("TK1","RTERA","0"); 
-    add_code("MH1","RKOK3","0"); 
-    add_code("MH1","RKOK4","0"); 
-    add_code("MH1","RKOK5","0"); 
-    add_code("TK1","RTUP1","0"); 
-    add_code("TK1","RTUP2","0"); 
-    add_code("MH2","RPSH1","0"); 
-    add_code("MH2","RKHH2","0");
-    add_code("MH1","RKOK1","0"); 
-    add_code("MH1","RKOK2","0"); 
-    add_code("TK1","RPARV","0"); 
-    add_code("MH2","RWC_2","0"); 
-    add_code("MH1","RMH11","0"); 
-    add_code("MH1","RMH12","0"); 
-    add_code("MH1","RMH13","0"); 
-    add_code("MH1","RMH14","0"); 
-    add_code("MH2","RET_1","0"); 
-    add_code("MH2","RMH21","0"); 
-    add_code("MH2","RMH22","0"); 
-    add_code("TK1","RPIHA","0"); 
-    add_code("TK1","RTK_1","0"); 
+    add_code("TK1","*.OFF","0"); 
+    add_code("MH1","*.OFF","0"); 
+    add_code("MH2","*.OFF","0"); 
 } 
   
 
@@ -232,9 +212,9 @@ void scan_btn(void){
 
 void run_1000ms(void){
     for (uint8_t i = 0; i < 4; i++){  
-        //Serial.print(kbd.rd_analog(i));Serial.print('-');
+        Serial.print(kbd.rd_analog(i));Serial.print('-');
     }
-    //Serial.println();   
+    Serial.println();   
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops)

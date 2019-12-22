@@ -1,8 +1,8 @@
 
 #include "relay_dict.h"
 
-#define RADIO_ZONE_MH1
-//#define RADIO_ZONE_MH2
+//#define RADIO_ZONE_MH1
+#define RADIO_ZONE_MH2
 //#define RADIO_ZONE_TK1
 
 
@@ -17,7 +17,7 @@ relay_dict_struct relay_dict[]={
     {"MH1","RKOK3",'2','2'},
     {"MH1","RKOK4",'2','3'},
     {"MH1","RKOK5",'2','4'},
-    {"MH1","*.OFF",'*','1'},
+    {"MH1","*.OFF",'*','0'},
 #endif   
 #ifdef RADIO_ZONE_MH2   
     {"MH2","RMH21",'1','1'},   
@@ -28,7 +28,7 @@ relay_dict_struct relay_dict[]={
     {"MH2","R____",'2','2'},
     {"MH2","RPSH1",'2','3'},
     {"MH2","RKHH2",'2','4'},
-    {"MH2","*.OFF",'*','-'},
+    {"MH2","*.OFF",'*','0'},
 #endif   
 #ifdef RADIO_ZONE_TK1   
     {"TK1","RTK_1",'1','1'},   
