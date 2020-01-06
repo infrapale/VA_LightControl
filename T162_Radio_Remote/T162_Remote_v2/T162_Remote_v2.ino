@@ -51,7 +51,7 @@ char zone_buff[CODE_BUFF_LEN][ZONE_LEN];  // ring buffer
 char func_buff[CODE_BUFF_LEN][FUNC_LEN];
 byte code_wr_indx;
 byte code_rd_indx;
-
+uint8_t pwr_on_ind_cntr = 0;
 void all_off(void);
 
 void setup() {
@@ -92,7 +92,7 @@ void loop() {
   
     scan_btn_handle.run();
     radio_send_handle.run();
-    //task_1000ms_handle.run();
+    task_1000ms_handle.run();
 
  
     key = kbd.read();
@@ -183,17 +183,17 @@ void add_code(const char *new_zone, const char *new_code, const char *new_func){
 }
 
 void radiate_msg( char *zone, char *relay_addr, char *func ) {
-    digitalWrite(LED_RED, LOW); 
     String relay_json = JsonRelayString(zone, relay_addr, func, "" );
     char rf69_packet[RH_RF69_MAX_MESSAGE_LEN] = "";
     relay_json.toCharArray(rf69_packet, RH_RF69_MAX_MESSAGE_LEN);
     radio_send_msg(rf69_packet);
     Serial.println(rf69_packet);
-    digitalWrite(LED_RED, HIGH); 
-}
+ }
 
 void radio_tx_handler(void){
+    digitalWrite(LED_RED, HIGH); 
     if (code_buff[code_rd_indx][0] != 0){
+        digitalWrite(LED_RED, LOW);
         radiate_msg(zone_buff[code_rd_indx],code_buff[code_rd_indx],func_buff[code_rd_indx]);
         //Serial.print(zone_buff[code_rd_indx]); Serial.println(code_buff[code_rd_indx]);
         code_buff[code_rd_indx][0] = 0;
@@ -204,17 +204,21 @@ void radio_tx_handler(void){
 
 void scan_btn(void){
     kbd.scan();
-    if ( yellow_cntr  == 0 )
-        digitalWrite(LED_YELLOW, HIGH);  
-    else
-        yellow_cntr--;
 }
 
 void run_1000ms(void){
-    for (uint8_t i = 0; i < 4; i++){  
+    pwr_on_ind_cntr++;
+    if (pwr_on_ind_cntr >20) {
+        pwr_on_ind_cntr = 0;
+        digitalWrite(LED_YELLOW, LOW);       
+    } else digitalWrite(LED_YELLOW, HIGH); 
+    
+    
+    /*for (uint8_t i = 0; i < 4; i++){  
         Serial.print(kbd.rd_analog(i));Serial.print('-');
     }
-    Serial.println();   
+    Serial.println();
+    */   
 }
 
 void Blink(byte PIN, byte DELAY_MS, byte loops)
