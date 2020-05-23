@@ -123,7 +123,7 @@ void loop() {
                         if((relay_indx >=0+'0') && (relay_indx <= NBR_RELAYS+'0')) {
                             switch(relay_function){
                                 case '0': turn_off(relay_indx-'0'); break;
-                                case '1': turn_off(relay_indx-'0'); break;
+                                case '1': turn_on(relay_indx-'0'); break;
                                 case 'T': toggle(relay_indx-'0');   break;
                             }
                             

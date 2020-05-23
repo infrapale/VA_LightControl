@@ -104,7 +104,7 @@ void read_serial(){
 void send_radio(void){
     const char zone[8];
     const char event[10];
-    const char value[8];
+    const char value[10];
     boolean verified = false;
     
     if (inp_buff[inp_rd_ptr][0] != 0){
@@ -116,7 +116,7 @@ void send_radio(void){
             switch(inp_buff[inp_rd_ptr][1]) {  // index
             case '1':  
                 strcpy(zone, "TK"); 
-                strcpy(event, "Etu-ovi"); 
+                strcpy(event, "Teras"); 
                 verified = true;
                 break;
             case '2':  
@@ -131,7 +131,7 @@ void send_radio(void){
                 break;
             case '4':  
                 strcpy(zone, "TK");
-                strcpy(event, "Teras"); 
+                strcpy(event, "Etuovi"); 
                 verified = true;
                 break;
             case '5':  
@@ -142,6 +142,8 @@ void send_radio(void){
             }
             break;
         }
+        
+        Serial.print("zone=");Serial.println(zone);
         if(verified){
             switch (inp_buff[inp_rd_ptr][2]){
             case 'L':
@@ -152,7 +154,7 @@ void send_radio(void){
                 verified = false; break;                 
             }
         }
-        //Serial.println(zone);Serial.println(event);Serial.println(value);
+        Serial.println(zone);Serial.println(event);Serial.println(value);
         if (verified) {
             JsonInputString(json_str,zone,event,value,""); 
             Serial.println(json_str);
@@ -165,6 +167,7 @@ void send_radio(void){
 
 void JsonInputString(char *result_str, const char *zone, const char *addr, const char *value, const char *remark ){
     result_str[0] = 0;
+    Serial.println(zone);
     strcat(result_str,"{\"Z\":\"");
     strcat(result_str,zone);
     strcat(result_str,"\",");
