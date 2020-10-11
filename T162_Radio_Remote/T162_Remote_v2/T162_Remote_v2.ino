@@ -88,57 +88,65 @@ void loop() {
     byte msg_indx;
     char radio_packet[20] = "";
     byte i; 
+    uint16_t durkey;
     String r_addr;
+    char cmd_str[2];
   
     scan_btn_handle.run();
     radio_send_handle.run();
     task_1000ms_handle.run();
 
- 
-    key = kbd.read();
+    durkey = kbd.read_dur();
+    key = lowByte(durkey);
+    if (highByte(durkey) != 0)  cmd_str[0] = '0';
+    else cmd_str[0] = '1';
+    cmd_str[1] = 0x00;
+    //key = kbd.read();
     if (key != 0) {
         Serial.print("key(hex)=");Serial.println(key,HEX);
         msg_indx = 0;
         switch(key){
-        case '7': add_code("TK1","RLH_1","T"); break;
-        case '4': add_code("TK1","RPOLK","T"); break;
-        case '1': add_code("TK1","RTERA","T"); break;
+        case '7': add_code("TK1","RLH_1",cmd_str); break;
+        case '4': add_code("TK1","RPOLK",cmd_str); break;
+        case '1': add_code("TK1","RTERA",cmd_str); break;
         case '5': 
-            add_code("MH1","RKOK3","T"); 
-            add_code("MH1","RKOK4","T"); 
-            add_code("MH1","RKOK5","T"); 
+            add_code("MH1","RKOK3",cmd_str); 
+            add_code("MH1","RKOK4",cmd_str); 
+            add_code("MH1","RKOK5",cmd_str); 
             break;
  
         case '2': 
-            add_code("TK1","RTUP1","T"); 
-            add_code("TK1","RTUP2","T"); 
+            add_code("TK1","RTUP1",cmd_str); 
+            add_code("TK1","RTUP2",cmd_str); 
             break;
         case '*': 
-            add_code("MH2","RPSH1","T"); 
-            add_code("MH2","RKHH2","T");
+            add_code("MH2","RPSH1",cmd_str); 
+            add_code("TK1","RKHH1",cmd_str);
+            add_code("MH2","RKHH2",cmd_str);
             break;
         case '3': 
-            add_code("MH1","RKOK1","T"); 
-            add_code("MH1","RKOK2","T"); 
+            add_code("MH1","RKOK1",cmd_str); 
+            add_code("MH1","RKOK2",cmd_str); 
             break;
-        case '0': add_code("TK1","RPARV","T"); break;
+        case '0': 
+            add_code("TK1","RPARV",cmd_str); break;
         case '8': 
-            add_code("MH2","RWC_2","T"); 
+            add_code("MH2","RWC_2",cmd_str); 
             break;
         case '#': //MH1
-            add_code("MH1","RMH11","T"); 
-            add_code("MH1","RMH12","T"); 
-            add_code("MH1","RMH13","T"); 
-            //add_code("MH1","RMH14","T"); 
+            add_code("MH1","RMH11",cmd_str); 
+            add_code("MH1","RMH12",cmd_str); 
+            add_code("MH1","RMH13",cmd_str); 
+            //add_code("MH1","RMH14",cmd_str); 
             break;
-        case '9': add_code("MH2","RET_1","T"); break;
+        case '9': add_code("MH2","RET_1",cmd_str); break;
         case '6': 
-            add_code("MH2","RMH21","T"); 
-            add_code("MH2","RMH22","T"); 
-            //add_code("MH2","RMH23","T"); 
+            add_code("MH2","RMH21",cmd_str); 
+            add_code("MH2","RMH22",cmd_str); 
+            //add_code("MH2","RMH23",cmd_str); 
             break;
-        case 'C': add_code("TK1","RPIHA","T"); break;
-        case 'B': add_code("TK1","RTK_1","T"); break;
+        case 'C': add_code("TK1","RPIHA",cmd_str); break;
+        case 'B': add_code("TK1","RTK_1",cmd_str); break;
         case 'A': all_off(); break;
         } 
     }  
@@ -148,6 +156,13 @@ void all_off(){
     add_code("TK1","*.OFF","0"); 
     add_code("MH1","*.OFF","0"); 
     add_code("MH2","*.OFF","0"); 
+    add_code("TK1","RTUP1","0"); 
+    add_code("TK1","RTUP2","0"); 
+    add_code("TK1","RPARV","0");
+    add_code("TK1","RKHH1","0");
+    add_code("TK1","RPIHA","0");
+     
+
 } 
   
 
