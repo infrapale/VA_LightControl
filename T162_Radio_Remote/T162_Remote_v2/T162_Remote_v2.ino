@@ -65,6 +65,14 @@ void setup() {
     digitalWrite(LED_YELLOW,HIGH);
     digitalWrite(LED_RED, HIGH);
 
+    while (0){
+        for (i=0;i<4;i++){
+          Serial.print(kbd.rd_analog(i)); 
+          Serial.print(" ");
+        }
+        Serial.println(" ");
+    }
+
     // clear code and zone buffers
     for(i=0;i<CODE_BUFF_LEN; i++){
         code_buff[i][0] = 0;
