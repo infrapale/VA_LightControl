@@ -11,6 +11,10 @@
 
   Written by Limor Fried/Ladyada for Adafruit Industries.
   MIT license, all text above must be included in any redistribution
+
+https://github.com/espressif/arduino-esp32/blob/master/libraries/SPI/examples/SPI_Multiple_Buses/SPI_Multiple_Buses.ino
+
+
  ****************************************************/
 
 
@@ -37,11 +41,20 @@ XPT2046_Touchscreen ts(TOUCH_CS);
 
 #define NUMBER_OF_TILES 4
 
+typedef enum
+{
+    SPI_CS_TFT = 0,
+    SPI_CS_TOUCH,
+    SPI_CS_SD
+} spi_cs_et;
+
 typedef struct
 {
     uint16_t x;
     uint16_t y;
 } pos_st;
+
+typedef void (*show_cb_t)(void);
 
 typedef struct 
 {
@@ -57,6 +70,12 @@ typedef struct
     uint16_t fill_color;
     uint16_t text_color;
     uint8_t  text_size;
+    bool     refresh;
+    bool     is_button;
+    uint32_t value;
+    //show_cb_t show_cb;
+    void (*show_cb)();
+    void (*press_cb)();
 }  tile_st;
 
 typedef struct 
@@ -68,6 +87,7 @@ typedef struct
 }  touch_limit_st;
 
 
+const uint8_t SPI_CS_SELECT[3] = {TFT_CS, TOUCH_CS, TFT_CS};
 static tile_st tile[NUMBER_OF_TILES];
 static touch_limit_st  tslim = {300,400,3800,3800};
 const uint16_t line_spacing[6] = {0,10,20,30,40,50};
@@ -79,12 +99,55 @@ const uint16_t line_spacing[6] = {0,10,20,30,40,50};
 // If using the breakout, change pins as desired
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_SCK, TFT_RST, TFT_MISO);
 
+
+void show_at_home(void)
+{
+      Serial.print("show_at_home(), value =");
+      Serial.println(tile[0].value);
+      tile_position(&tile[0],0,5+(uint16_t)tile[0].value,110,80);
+      tile_set_color(&tile[0],ILI9341_LIGHTGREY,ILI9341_DARKGREY);
+      tile_set_text(&tile[0],ILI9341_WHITE,2);
+      tile_create(&tile[0]);
+      tile_println(&tile[0],"Astrid");
+      delay(500);
+      tile_println(&tile[0],"at Home");
+      delay(500);
+      tile_println_value(&tile[0]);
+      //tile_println_u32(&tile[0],42ULL);
+      delay(500);
+      yield();
+}
+
+void press_at_home(void)
+{
+    Serial.print("press_at_home(), value =");
+    tile[0].value++;
+    tile[0].refresh = true;
+    Serial.println(tile[0].value);
+
+}
+
+
+void set_spi_cs( spi_cs_et spi_cs)
+{
+    for (uint8_t spi = SPI_CS_TFT; spi <= SPI_CS_TOUCH; spi++)
+    {
+        if (spi == spi_cs) digitalWrite(SPI_CS_SELECT[spi], LOW);
+        else digitalWrite(SPI_CS_SELECT[spi], HIGH);       
+    }
+}
+
+
+
 void setup() {
   Serial.begin(115200);
   Serial.println("ILI9341 Test!"); 
  
   Serial.println("initialize tile[]"); 
  
+  pinMode(TFT_CS, OUTPUT);
+  pinMode(TOUCH_CS, OUTPUT);
+
   for (uint8_t i=0; i < NUMBER_OF_TILES; i++ )
   {
       tile[i].x0 = 0;
@@ -97,12 +160,16 @@ void setup() {
       tile[i].fill_color = ILI9341_BLUE;
       tile[i].text_color = ILI9341_YELLOW;
       tile[i].text_size = 2;
-      Serial.print("tile[i].x0: "); Serial.println(tile[i].x0);
+      tile[i].refresh = false;
+      tile[i].is_button = false;
+      tile[i].value = 0;
+      tile[i].show_cb = NULL;
+      tile[i].press_cb = NULL;
   }
   tile[0].width = 120;
   Serial.println("... initialize tile[] ...done");
   
-
+  set_spi_cs(SPI_CS_TFT);
   tft.begin();
 
   // read diagnostics (optional but can help debug problems)
@@ -124,24 +191,45 @@ void setup() {
   delay(500);
   
   
+
+  
  
   tft.setRotation(1);
   tft.fillScreen(ILI9341_BLACK);
   yield();
+  tile[0].show_cb = show_at_home;
+  tile[0].press_cb = press_at_home;
+  tile[0].refresh = true;
+  tile[0].is_button = true;
+
+  
+  /*
   tile_position(&tile[0],0,5,110,80);
   tile_set_color(&tile[0],ILI9341_LIGHTGREY,ILI9341_DARKGREY);
   tile_set_text(&tile[0],ILI9341_WHITE,2);
   tile_create(&tile[0]);
   tile_println(&tile[0],"Astrid");
   tile_println(&tile[0],"at Home");
+  */
   delay(500);
   tile_position(&tile[1],120,5,180,80);
   tile_set_color(&tile[0],ILI9341_GREENYELLOW, ILI9341_DARKGREY);
   tile_set_text(&tile[1],ILI9341_WHITE,3);
+  tile_set_button(&tile[1],true);
   tile_create(&tile[1]);
   tile_println(&tile[1],"Astrid");
   tile_println(&tile[1],"Automatic");
   delay(500);
+ 
+  for (uint8_t i=0; i < NUMBER_OF_TILES; i++ )
+  {
+      if (tile[i].show_cb != NULL)
+      {
+          tile[i].show_cb();
+      }
+  }
+
+  set_spi_cs(SPI_CS_TOUCH);
 
   ts.begin();
   ts.setRotation(3);
@@ -150,8 +238,14 @@ void setup() {
 
   while(1)
   {
+      set_spi_cs(SPI_CS_TOUCH);
       if (get_touch_pos(&xy))
-      {
+      {   
+          set_spi_cs(SPI_CS_TFT);
+          yield();
+          testText();
+          //tft.fillScreen(ILI9341_BLACK);
+          yield();
           Serial.print("x = ");
           Serial.print(xy.x);
           Serial.print(", y = ");
@@ -161,8 +255,14 @@ void setup() {
           {
               Serial.print("Button = ");
               Serial.println(btn_idx);
+              tile_call_pressed_function(&tile[btn_idx]);
+              tile[btn_idx].refresh = true;
           }
 
+      }
+      for (uint8_t i=0; i < NUMBER_OF_TILES; i++ )
+      {
+          tile_call_refresh_function(&tile[i]);
       }
       delay(100);
       yield();
@@ -219,6 +319,7 @@ void setup() {
 
 }
 
+
 uint8_t get_pressed_button(pos_st *xy)
 {
     uint8_t res = NUMBER_OF_TILES + 1;
@@ -271,6 +372,28 @@ boolean get_touch_pos(pos_st *xy)
     return istouched;
 }
 
+void tile_call_pressed_function(tile_st *tp)
+{
+    if (tp->press_cb != NULL)
+    {
+        tp->press_cb();
+    }
+}
+
+void tile_call_refresh_function(tile_st *tp)
+{
+    if ( tp->refresh)
+    {
+        Serial.println("refresh tile");
+        if (tp->show_cb != NULL)
+        { 
+            Serial.println("show tile");
+            tp->show_cb();
+        }
+        tp->refresh = false;
+    }
+}
+
 void tile_position(tile_st *tp, uint16_t x0,uint16_t y0,uint16_t w,uint16_t h)
 {
     tp->x0 = x0;
@@ -296,13 +419,22 @@ void tile_set_text(tile_st *tp, uint16_t color, uint8_t size )
     tp->text_size  = size;
 }
 
+void tile_set_button(tile_st *tp, bool is_btn)
+{
+    tp->is_button = is_btn;
+}
 void tile_create(tile_st *tp)
 {
-    yield();
-    tft.fillRect(tp->x0,tp->y0, tp->width, tp->height, tp->fill_color);
-    //tft.fillRect(5,5, 100, 100, ILI9341_BLUE);
-    yield();
-    tft.drawRect(tp->x0,tp->y0, tp->width, tp->height, tp->border_color);
+    if (tp->is_button)
+    {
+        tft.fillRoundRect(tp->x0,tp->y0, tp->width, tp->height, 8, tp->fill_color );
+        tft.drawRoundRect(tp->x0,tp->y0, tp->width, tp->height, 8, tp->border_color );
+    }
+    else
+    {
+        tft.fillRect(tp->x0,tp->y0, tp->width, tp->height, tp->fill_color);
+        tft.drawRect(tp->x0,tp->y0, tp->width, tp->height, tp->border_color);
+    }
     yield();
 }
 
@@ -313,11 +445,27 @@ void tile_set_cursor(tile_st *tp)
     yield();
 }
 
-void tile_println(tile_st *tp, char *txt)
-//void tile_println(void)
+void tile_new_line(tile_st *tp)
 {
     tft.setCursor(tp->curx,tp->cury);
-    tft.setTextColor(ILI9341_WHITE);  
+    tp->cury += line_spacing[tp->text_size];
+    yield();
+}
+
+void tile_println_value(tile_st *tp)
+{
+    tile_new_line(tp);
+    tft.println(tp->value, HEX);
+    tft.println();
+    Serial.println(tp->value,HEX);
+
+    yield();
+}
+
+void tile_println(tile_st *tp, char *txt)
+{
+    tft.setCursor(tp->curx,tp->cury);
+    tft.setTextColor(tp->text_color);  
     tft.setTextSize(tp->text_size);
     tft.println(txt);
     tp->cury += line_spacing[tp->text_size];
