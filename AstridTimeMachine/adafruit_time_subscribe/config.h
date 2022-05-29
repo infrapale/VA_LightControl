@@ -3,6 +3,27 @@
 // visit io.adafruit.com if you need to create an account,
 // or if you need your Adafruit IO key.
 
+
+/// SSID Definitions
+//#define  VILLA_ASTRID
+//#define  LILLA_ASTRID
+#define  H_MOKKULA
+//#define PIRPANA
+#include "secrets.h"
+
+#include <WiFi.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+
+
+//#define IO_USERNAME "your_username"
+//#define IO_KEY "your_key"
+//#define WIFI_SSID "your_ssid"
+//#define WIFI_PASS "your_pass"
+
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883
+
 /******************************* WIFI **************************************/
 
 // the AdafruitIO_WiFi client will work with the following boards:
@@ -18,14 +39,15 @@
 //   - Adafruit AirLift Shield -> https://www.adafruit.com/product/4285
 //   - Adafruit AirLift FeatherWing -> https://www.adafruit.com/product/4264
 
-#define AIO_SERVER      "io.adafruit.com"
-#define AIO_SERVERPORT  1883
 
 // uncomment the following line if you are using airlift
 // #define USE_AIRLIFT
 
 // uncomment the following line if you are using winc1500
 // #define USE_WINC1500
+
+// uncomment the following line if you are using mrk1010 or nano 33 iot
+//#define ARDUINO_SAMD_MKR1010
 
 // comment out the following lines if you are using fona or ethernet
 #include "AdafruitIO_WiFi.h"
@@ -46,9 +68,6 @@ AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS, SPIWIFI_SS,
 #else
 AdafruitIO_WiFi io(IO_USERNAME, IO_KEY, WIFI_SSID, WIFI_PASS);
 #endif
-
-#define TIMEZONE "America/New_York"  // http://worldtimeapi.org/timezones
-
 /******************************* FONA **************************************/
 
 // the AdafruitIO_FONA client will work with the following boards:
