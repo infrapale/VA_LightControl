@@ -84,14 +84,29 @@ void loop()
         if (subscription == &time_iso_feed) {
             printf("Got %s\n",(char *)time_iso_feed.lastread);
             memset(&mqtt_tm,0x00,sizeof(mqtt_tm));
-            strptime((char *)time_iso_feed.lastread, "%Y-%m-%d %H:%M:%S", &mqtt_tm);
-            printf("%d\n",mqtt_tm.tm_year);
+            strptime((char *)time_iso_feed.lastread, "%Y-%m-%dT%H:%M:%S", &mqtt_tm);
+            printf("%d ",mqtt_tm.tm_year+1900);
+            printf("%d ",mqtt_tm.tm_mon);
+            printf("%d ",mqtt_tm.tm_mday);
+            printf("%d ",mqtt_tm.tm_hour);
+            printf("%d ",mqtt_tm.tm_min);
+            printf("%d ",mqtt_tm.tm_sec);
+            printf("%d ",mqtt_tm.tm_wday);
+            printf("%d ",mqtt_tm.tm_yday);
+            printf("%d\n",mqtt_tm.tm_isdst);
             time= mktime(&mqtt_tm);
             printf("%d\n",time);
+            time = time + 3*60*60;
             local_tm = localtime(&time);
-            printf("Local hour %d\n",local_tm->tm_hour);
-
-
+            printf("%d ",local_tm->tm_year+1900);
+            printf("%d ",local_tm->tm_mon);
+            printf("%d ",local_tm->tm_mday);
+            printf("%d ",local_tm->tm_hour);
+            printf("%d ",local_tm->tm_min);
+            printf("%d ",local_tm->tm_sec);
+            printf("%d ",local_tm->tm_wday);
+            printf("%d ",local_tm->tm_yday);
+            printf("%d\n",local_tm->tm_isdst);
         }
     }
 }
