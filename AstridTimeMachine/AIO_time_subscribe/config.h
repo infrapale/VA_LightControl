@@ -20,7 +20,6 @@
 
 #define AIO_SERVER      "io.adafruit.com"
 #define AIO_SERVERPORT  1883
-
 // uncomment the following line if you are using airlift
 // #define USE_AIRLIFT
 
@@ -35,6 +34,8 @@
 //#define  H_MOKKULA
 #define PIRPANA
 #include "secrets.h"
+#define WIFI_SSID  "Pirpana"
+#define WIFI_PASS  "Astr0Smurf198x"
 
 #if defined(USE_AIRLIFT) || defined(ADAFRUIT_METRO_M4_AIRLIFT_LITE) ||         \
     defined(ADAFRUIT_PYPORTAL)

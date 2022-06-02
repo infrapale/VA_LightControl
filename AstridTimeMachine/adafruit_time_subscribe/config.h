@@ -7,8 +7,8 @@
 /// SSID Definitions
 //#define  VILLA_ASTRID
 //#define  LILLA_ASTRID
-#define  H_MOKKULA
-//#define PIRPANA
+//define  H_MOKKULA
+#define PIRPANA
 #include "secrets.h"
 
 #include <WiFi.h>
