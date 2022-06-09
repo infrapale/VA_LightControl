@@ -8,6 +8,10 @@
  *  SCK
  */
 
+#define ARDUINO_RUNNING_CORE 1
+#define MQTT_UPDATE_INTERVAL_ms   60000   ///< MQTT update interval, one value per time
+
+#define WDT_TIMEOUT               10
 
 #define MH1_BTN
 //#define MH2_BTN
@@ -15,7 +19,6 @@
 //#define TK_RELAY
 
 #define MENU_DATA
-
 #define BROADCAST     255
 #define RECEIVER      BROADCAST    // The recipient of packets
 
@@ -27,7 +30,7 @@
 #define IS_RFM69HCW   true // set to 'true' if you are using an RFM69HCW module
 
 //*********************************************************************************************
-#define SERIAL_BAUD   9600   //115200
+#define SERIAL_BAUD   115200
 
 #define RFM69_CS      15
 #define RFM69_INT     32
@@ -44,14 +47,14 @@
 #define CODE_BUFF_LEN_MASK 0b00011111;
 
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 #include <Wire.h>
 #include <SPI.h>
-//#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
+#include "config.h"
 #include "secrets.h"
 #include <rfm69_support.h>
-//#include <TaHa.h>
+#include <time.h>
 #include <Pin_Button.h>
-//#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
 #ifdef K_BTN
 //#include <akbd.h>
@@ -69,6 +72,18 @@ char func_buff[CODE_BUFF_LEN][FUNC_LEN];
 byte code_wr_indx;
 byte code_rd_indx;
 
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, IO_USERNAME, IO_KEY);
+
+const char TIME_ISO_FEED[] PROGMEM = "time/ISO-8601";
+Adafruit_MQTT_Subscribe time_iso_feed = Adafruit_MQTT_Subscribe(&mqtt, TIME_ISO_FEED);
+
+static TaskHandle_t htask;
+
+void TaskSendAio( void *pvParameters );
+void TaskReceiveAio( void *pvParameters );
+
+
 //*********************************************************************************************
 // *********** IMPORTANT SETTINGS - YOU MUST CHANGE/ONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
@@ -77,15 +92,31 @@ byte code_rd_indx;
 int16_t packetnum = 0;  // packet counter, we increment per xmission
 PinBtn butt[MAX_BTN];
  
-void setup() {
-    byte i;
-    
-    //wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
+void setup() {  
+    BaseType_t rc;
+    esp_err_t er;
+
     delay(2000);
+
     while (!Serial); // wait until serial console is open, remove if not tethered to computer
     Serial.begin(SERIAL_BAUD);
-    //wdt_enable(WDTO_2S);
-    printf("step 1\n");
+
+    htask = xTaskGetCurrentTaskHandle();
+    
+    delay(4000);
+    Serial.begin(115200);   
+
+    er = esp_task_wdt_status(htask);
+    assert(er == ESP_ERR_NOT_FOUND);
+    
+    if ( er == ESP_ERR_NOT_FOUND ) {
+        er = esp_task_wdt_init(10,true);
+        assert(er == ESP_OK);
+        er = esp_task_wdt_add(htask);
+        assert(er == ESP_OK);
+        printf("Task is subscribed to TWDT.\n");
+    }
+
     /*
     butt[0].Init(3,'1');
     butt[1].Init(4,'2');
@@ -95,7 +126,7 @@ void setup() {
     butt[5].Init(8,'6');
 */    
     // clear code and zone buffers
-    for(i=0;i<CODE_BUFF_LEN; i++){
+    for(uint8_t i=0; i<CODE_BUFF_LEN; i++){
         code_buff[i][0] = 0;
         zone_buff[i][0] = 0;
     }
@@ -110,14 +141,23 @@ void setup() {
     #endif
 
     pinMode(LED, OUTPUT);     
-    printf("step 3\n");
+   
+   
+   
+    Serial.println("Connecting WiFi");       
+    WiFi.begin(WIFI_SSID,WIFI_PASS );
+    if (WiFi.status() != WL_CONNECTED) 
+    {
+        Serial.println("*"); 
+    }
+    Serial.println("WiFi Connected");      
 
-    //radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
-    //radio_send_msg("T168_Wall_Button");
 
-    // ------------------Real time settings---------------------
-    //scan_btn_handle.set_interval(10,RUN_RECURRING, scan_btn);
-    //radio_send_handle.set_interval(100,RUN_RECURRING, radio_tx_hanndler);
+    mqtt.subscribe(&time_iso_feed);
+    Serial.print("Connecting to Adafruit IO");
+
+    //StartTasks();
+
 
 }
 
@@ -125,23 +165,166 @@ void setup() {
 // Main Loop
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-void loop() {
-  
-    //scan_btn_handle.run();
-    //radio_send_handle.run();
-    //wdt_reset();
-    //-------------------------------------------------------
-    // Read pressed buttons
-    // if button is preseed add a command code to the ring buffer
-    //-------------------------------------------------------
-    #if defined(MH1_BTN) || defined(MH2_BTN)
-         //mini_terminals();
-    #endif
-    #ifdef K_BTN
-         //maxi_terminals();
-    #endif
-        
+void loop() 
+{
+esp_err_t er;
+    er = esp_task_wdt_add(nullptr);
+    er = esp_task_wdt_status(htask);
+    assert(er == ESP_OK);
+    esp_task_wdt_reset();
+    vTaskDelay(1000);
+
 }
+
+void StartTasks(void){
+    BaseType_t rc;
+    /* 
+    xTaskCreatePinnedToCore(
+       TaskSendAio
+        ,  "TaskSendAio"   // A name just for humans
+        ,  32000  // This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  NULL
+        ,  4  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+        ,  NULL 
+        ,  ARDUINO_RUNNING_CORE);
+    */
+    
+    xTaskCreatePinnedToCore(
+       TaskReceiveAio
+        ,  "TaskReceiveAio"   // A name just for humans
+        ,  32000  // This stack size can be checked & adjusted by reading the Stack Highwater
+        ,  NULL
+        ,  8  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
+        ,  NULL 
+        ,  ARDUINO_RUNNING_CORE);
+
+
+   
+    //aio_sema_handle = xSemaphoreCreateBinary();
+    //assert(aio_sema_handle);
+     
+}
+
+
+
+void TaskSendAio( void *pvParameters ){
+    uint8_t iot_state = 0;
+    BaseType_t rc;
+    
+    for (;;)
+    {   
+        /*
+        //rc = xSemaphoreTake(aio_sema_handle,500); 
+        rc = pdPASS;
+        if (rc == pdPASS){
+            io.run();        
+            switch (iot_state) {
+                case 0: case 1: case 2: case 3: case 4:
+                    if (iot_state < NBR_LDR_RES){
+                        ldr_feed[iot_state]->save(ldr_value[iot_state]);
+                    }    
+                    break;
+                case 5:
+                    temperature->save(bme.temperature);
+                    break;
+                case 6:    
+                    humidity->save(bme.humidity);
+                    break;
+            }
+            iot_state++;
+            if (iot_state > 6 ){
+                iot_state = 0;
+            } 
+            //rc = xSemaphoreGive(aio_sema_handle);
+        }    
+        */
+        vTaskDelay(2000);
+       
+    }
+}
+
+void TaskReceiveAio( void *pvParameters ){
+    uint8_t iot_receive_state = 0;
+    BaseType_t rc;
+    esp_err_t er;
+
+    struct tm mqtt_tm = {0};
+    struct tm *local_tm;
+    time_t time;
+    int8_t ret;
+
+    er = esp_task_wdt_add(nullptr);
+    assert(er == ESP_OK);
+
+    Adafruit_MQTT_Subscribe *subscription;
+    for (;;)
+    {    
+        printf("TaskReceiveAio: %d",iot_receive_state);
+        switch (iot_receive_state) 
+        {
+            case 0:
+                if (mqtt.connected()) 
+                {
+                    iot_receive_state = 2;
+                    Serial.println("MQTT Connected!");
+                } 
+                else 
+                {
+                    iot_receive_state = 1;
+                    Serial.println("Trying to Connected MQTT!");
+                }  
+                esp_task_wdt_reset();
+                vTaskDelay(1000);
+                break;
+            case 1:
+                ret = mqtt.connect();
+                if (ret != 0)
+                {
+                    mqtt.disconnect();
+                }
+                else
+                {
+                    iot_receive_state = 2; 
+                    Serial.println("MQTT Connected!");
+                }
+                esp_task_wdt_reset();
+                vTaskDelay(1000);
+                break;
+            case 2:  // MQTT Connected
+                subscription = mqtt.readSubscription(10);
+                //subscription = NULL;
+                if (subscription == &time_iso_feed) 
+                {
+                    printf("Got %s\n",(char *)time_iso_feed.lastread);
+                }
+                esp_task_wdt_reset();
+                vTaskDelay(10000);
+                break;
+            case 3:
+                break;
+        }
+
+        if (mqtt.connected()) 
+        {
+          return;
+        }
+
+
+
+        //rc = xSemaphoreTake(aio_sema_handle,500); 
+        if (rc == pdPASS){
+            io.run();
+            //led_yellow->onMessage(handleMessage);
+            //rc = xSemaphoreGive(aio_sema_handle);
+        }
+        vTaskDelay(1000);
+    }
+}
+
+
+
+
+
 
 
 void mini_terminals(void){
