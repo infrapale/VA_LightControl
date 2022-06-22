@@ -14,6 +14,7 @@
 
 /************************** Configuration ***********************************/
 
+#define ARDUINO_RUNNING_CORE 1
 // edit the config.h tab and enter your Adafruit IO credentials
 // and any additional configuration needed for WiFi, cellular,
 // or ethernet clients.
@@ -34,6 +35,8 @@ const char TIME_ISO_FEED[] PROGMEM = "time/ISO-8601";
 Adafruit_MQTT_Subscribe time_iso_feed = Adafruit_MQTT_Subscribe(&mqtt, TIME_ISO_FEED);
 
 static TaskHandle_t htask;
+static SemaphoreHandle_t sema_wifi_avail;
+static SemaphoreHandle_t sema_mqtt_avail;
 
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
@@ -80,14 +83,15 @@ void setup()
     }
     Serial.println("WiFi Connected");      
     */
-
+    /*
     mqtt.subscribe(&time_iso_feed);
     Serial.print("Connecting to Adafruit IO");
+    */
     StartTasks();
 }
 
 void loop() 
-{
+{   /*
     struct tm mqtt_tm = {0};
     struct tm tm = {0};
     struct tm *local_tm;
@@ -107,6 +111,7 @@ void loop()
             memset(&mqtt_tm,0x00,sizeof(mqtt_tm));
             strptime((char *)time_iso_feed.lastread, "%Y-%m-%dT%H", &mqtt_tm);
             //strptime((char *)time_iso_feed.lastread, "%Y-%m-%dT%H:%M:%S", &mqtt_tm);
+
             printf("%d ",mqtt_tm.tm_year+1900);
             printf("%d ",mqtt_tm.tm_mon+1);
             printf("%d ",mqtt_tm.tm_mday);
@@ -131,6 +136,7 @@ void loop()
             printf("%d\n",local_tm->tm_isdst);
         }
     }
+    */
     
 }
 
@@ -148,7 +154,7 @@ void TaskConnectWiFi( void *pvParameters ){
     
     for (;;)
     {
-        //printf("WiFi state: %d\n", state);
+        printf("WiFi state: %d\n", state);
         switch(state)
         {
             case 0:   // initial
@@ -163,13 +169,11 @@ void TaskConnectWiFi( void *pvParameters ){
                 break;
             case 1:   // Check for the connection
                 if (WiFi.status() != WL_CONNECTED) {
-                    digitalWrite(LED_YELLOW,LOW);
                     vTaskDelay(1000);
                     if (--retries == 0) state = 3;
                     else Serial.println("Waiting for WiFi"); 
                 }
                 else {
-                    digitalWrite(LED_YELLOW,HIGH);
                     Serial.println("Connected to WiFi");
                     rc = xSemaphoreGive(sema_wifi_avail);
                     state = 2;
@@ -193,6 +197,134 @@ void TaskConnectWiFi( void *pvParameters ){
 
 
 
+
+void TaskConnectMqtt( void *pvParameters ){
+    uint8_t state;
+    int8_t ret;
+    uint8_t retries = 3;
+    BaseType_t rc;
+    esp_err_t er;
+    uint8_t   wifi_timeout;
+    uint8_t   mqtt_timeout;
+    uint8_t   sensor_indx;
+    uint8_t   interval_sec;
+    
+    state = 0;
+    er = esp_task_wdt_add(nullptr);
+    assert(er == ESP_OK);
+    
+    for (;;)
+    { 
+        printf("MQTT state: %d\n", state);
+        switch(state) {
+            case 0: // initial
+                sensor_indx  = 0;
+                state++;
+                break;
+            case 1: //Re-run MQTT action
+                wifi_timeout = 10;
+                mqtt_timeout = 10;
+                state++;
+                break;
+                
+            case 2: // waiting for WiFi
+                rc = xSemaphoreTake(sema_wifi_avail, 1000);
+                if(rc == pdPASS) state++;
+                else {
+                    if(--wifi_timeout == 0) state = 99;
+                }
+                esp_task_wdt_reset();
+                vTaskDelay(1000);
+                break;
+            case 3: // WiFi is available
+                if (mqtt.connected()){
+                    printf("MQTT was already connected\n");
+                    state++;
+                }
+                else {                
+                    printf("Connecting to MQTT…\n ");  
+                    if (WiFi.status() != WL_CONNECTED)
+                    {
+                        printf("WiFi is not connected\n ");  
+                        state = 99;  //restart
+                    }
+                    else{
+                        ret = mqtt.connect();
+                        if (ret != 0) {    // connect will return 0 for connected
+                            printf("%s\n",mqtt.connectErrorString(ret));
+                            printf("Retrying MQTT connection…\n");
+                            mqtt.disconnect();          
+                            if (--mqtt_timeout == 0) state = 6;
+                        }
+                        else {
+                            esp_task_wdt_reset();
+                            vTaskDelay(100);
+                            state++;
+                        }
+                    }
+                }
+                
+            case 4: // MQTT is connected
+                printf("MQTT is Connected!\n"); 
+                rc = xSemaphoreGive(sema_mqtt_avail);
+                esp_task_wdt_reset();
+                state++;
+                vTaskDelay(100);
+                break;
+            case 5: // MQTT actions
+                if (mqtt.connected()){
+                    /*
+                    if (*sensor[sensor_indx].updated_ptr)
+                    {
+                        printf("%s %f\n",sensor[sensor_indx].caption,*sensor[sensor_indx].data_ptr);
+                        sensor[sensor_indx].ada_mqtt_publ->publish(*sensor[sensor_indx].data_ptr);      
+                    }
+                    if(++sensor_indx >= NBR_SENSORS) sensor_indx = 0;
+                    */
+                    state++;
+                    interval_sec = 15;
+
+                } else {
+                    interval_sec = 15;
+                    state = 99;
+                }
+                esp_task_wdt_reset();
+                vTaskDelay(1000);
+                break;
+
+            case 6: // Release WiFI and MQTT
+                mqtt.disconnect();  
+                rc = xSemaphoreGive(sema_wifi_avail);  
+                state++;
+                break;
+
+            case 7: //Wait for next MQTT update
+                if(--interval_sec == 0) state = 1;
+                esp_task_wdt_reset();
+                vTaskDelay(1000);          
+                break;
+
+            case 99: //
+                printf("Retry limit reached -> WDT reset…\n");
+                rc = xSemaphoreGive(sema_wifi_avail);
+                rc = xSemaphoreGive(sema_mqtt_avail);
+                vTaskDelay(10000);
+                break;
+            default:
+                printf("Fatal error: incorrect MQTT state -> WDT reset…\n");
+                vTaskDelay(100);
+                state = 99;
+                break;           
+        }
+    }
+}
+
+
+
+
+
+
+
 void StartTasks(void){
     BaseType_t rc;
 
@@ -212,6 +344,7 @@ void StartTasks(void){
         ,  ARDUINO_RUNNING_CORE);
     
   
+    /*
     xTaskCreatePinnedToCore(
        TaskConnectMqtt
         ,  "TaskConnectMqtt" 
@@ -220,8 +353,8 @@ void StartTasks(void){
         ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         ,  NULL 
         ,  ARDUINO_RUNNING_CORE);
-
-
+    */
+    /* 
     xTaskCreatePinnedToCore(
        TaskSendMqtt
         ,  "TaskSendMqtt" 
@@ -230,5 +363,5 @@ void StartTasks(void){
         ,  2  // Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         ,  NULL 
         ,  ARDUINO_RUNNING_CORE);
-    
+    */
 }
