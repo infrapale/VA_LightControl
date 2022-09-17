@@ -2,7 +2,7 @@
 //#include <font_Arial.h> // from ILI9341_t3
 #include <XPT2046_Touchscreen.h>
 #include <SPI.h>
-
+//"C:\Users\tom_h\projects\libraries\ThingPulse_XPT2046_Touch\examples\ILI9341Test\ILI9341Test.ino"
 #define TFT_DC    27
 #define TFT_CS    33
 #define TFT_MOSI  23  

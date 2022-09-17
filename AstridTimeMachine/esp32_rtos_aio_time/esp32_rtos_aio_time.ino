@@ -22,6 +22,10 @@
 #include "Adafruit_MQTT_Client.h"
 #include <esp_task_wdt.h>
 #include <Adafruit_Sensor.h>
+include <ILI9341_t3.h>
+//#include <font_Arial.h> // from ILI9341_t3
+#include <XPT2046_Touchscreen.h>
+
 
 #define ARDUINO_RUNNING_CORE 1
 
@@ -47,9 +51,23 @@
 #define LDR_PIN      34
 #define NBR_LDR_RES  5
 
+#define TOUCH_CS  25
+
+#define CS_PIN  8
+#define TFT_DC  9
+#define TFT_CS 10
+// MOSI=11, MISO=12, SCK=13
+
+XPT2046_Touchscreen ts(TOUCH_CS);
+#define TIRQ_PIN  2
+//XPT2046_Touchscreen ts(CS_PIN);  // Param 2 - NULL - No interrupts
+//XPT2046_Touchscreen ts(CS_PIN, 255);  // Param 2 - 255 - No interrupts
+//XPT2046_Touchscreen ts(CS_PIN, TIRQ_PIN);  // Param 2 - Touch IRQ Pin - interrupt enabled polling
+
+ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
 
 
-int scanTime = 5; //In seconds
+int scanTime = 2; //In seconds
 BLEScan* pBLEScan;
 uint16_t ldr_value[NBR_LDR_RES];
 uint8_t  ldr_select_pin[NBR_LDR_RES] = {15,16,17,18,19};
@@ -157,7 +175,14 @@ void setup()
 
     er = esp_task_wdt_status(htask);
     assert(er == ESP_ERR_NOT_FOUND);
+    // Initialize 
+    tft.begin();
+    tft.setRotation(1);
+    tft.fillScreen(ILI9341_BLACK);
+    ts.begin();
+    ts.setRotation(1);
     
+
     if ( er == ESP_ERR_NOT_FOUND ) {
         er = esp_task_wdt_init(10,true);
         assert(er == ESP_OK);
@@ -407,9 +432,11 @@ void TaskConnectMqtt( void *pvParameters ){
                         printf("WiFi is not connected\n ");  
                         state = 99;  //restart
                     }
-                    else{
+                    else
+                    {
                         ret = mqtt.connect();
-                        if (ret != 0) {    // connect will return 0 for connected
+                        if (ret != 0)  // connect will return 0 for connected
+                        {   
                             printf("%s\n",mqtt.connectErrorString(ret));
                             printf("Retrying MQTT connection…\n");
                             mqtt.disconnect();          
@@ -518,7 +545,7 @@ void TaskScanBle( void *pvParameters ){
                 vTaskDelay(4000);           
                 break; 
             case 2:   // Clear BLE results
-                //pBLEScan->clearResults(); 
+                pBLEScan->clearResults(); 
                 esp_task_wdt_reset();
                 state--;
                 vTaskDelay(1000);
