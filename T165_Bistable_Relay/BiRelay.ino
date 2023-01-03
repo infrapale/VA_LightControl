@@ -28,7 +28,7 @@ void turn_off(byte relay_indx) {
 };
 
 void toggle(byte relay_indx) {
-      Serial.print("Toggle: "); Serial.println(relay_indx-1);
+      //Serial.print("Toggle: "); Serial.println(relay_indx-1);
       relay_status[relay_indx-1].is_on = ! relay_status[relay_indx-1].is_on; 
       relay_status[relay_indx-1].cntr_10ms = SWITCH_TIME_x10ms; 
 };
