@@ -1,25 +1,32 @@
+
+
+
 ///////////////////////////////////////////////////////////////////////////
-////   Sketch: T165 8 Bi-Relay
-////   
-////                  8out4inp.c
+//   Sketch: T165 8 Bi-Relay
+//   
+//       
 ///////////////////////////////////////////////////////////////////////////
-////   Message syntax: "<#Rnr=x>"
-////       u = unit index 1,2,...
-////       r = relay index 1,2,3,4
-////       x = 0: off
-////       x = 1: on
-////       x = T: toggle
-////
-////       Example:  <#R24=1>   relay unit = 2, relay 4, switch on 
+//   Relay message syntax: "<#Rnr=x>"
+//       u = unit index 1,2,...
+//       r = relay index 1,2,3,4
+//       x = 0: off
+//       x = 1: on
+//       x = T: toggle
+//
+//       Example:  <#R24=1>   relay unit = 2, relay 4, switch on 
+//
+//    Set unit address: <@@U@@>   U= Unit address 
+//
 ///////////////////////////////////////////////////////////////////////////
 #include "Arduino.h"
 #include "AVR_Watchdog.h"
+#include <EEPROM.h>
 
 #include <TaHa.h> 
 #include <SoftwareSerial.h>
 //#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
-#define UNIT_INDX 2
+#define DEFAULT_UNIT_ADDR '0'
 
 #define RELAY_1A 8
 #define RELAY_1B 9
@@ -38,6 +45,8 @@
 
 #define SCOM_BUFF_LEN 40
 
+#define EEPROM_UNIT_ADDR 0
+
 byte softComState;
 char softComBuff[SCOM_BUFF_LEN];
 
@@ -51,25 +60,32 @@ byte relay_off_on[4][2]={
     {RELAY_4A,RELAY_4B}
       
 };
-uint8_t uAddr;
+char uAddr;
 
 void setup() {
     byte i;
     delay(2000);
     watchdog.set_timeout(120);
-    for (i=0;i<4;i++){
+    for (i=0;i<4;i++)
+    {
          pinMode( relay_off_on[i][0], OUTPUT); 
          pinMode( relay_off_on[i][1], OUTPUT); 
          digitalWrite(relay_off_on[i][0],LOW);
          digitalWrite(relay_off_on[i][1],LOW);
     }
     InitRelays();
-    uAddr = UNIT_INDX;
     Serial.begin(9600); 
+    
+    uAddr = EEPROM.read(EEPROM_UNIT_ADDR);
+    Serial.print("Unit Addr: ");
+    Serial.println(uAddr);
+    
+    if ((uAddr > 'Z') || (uAddr < '0')) uAddr = DEFAULT_UNIT_ADDR;
+    
     Serial.println();
     Serial.println("GitHub: infrpale/VA_LightControl/T165_Bistable_Relay 2019, 2023");
     Serial.print("Unit addr= "); Serial.println(uAddr);
-    uAddr = UNIT_INDX;
+    Serial.println("Set unit address: <@@U@@>\n");
     //Serial.println(analogRead(LM336_PIN)); Serial.println(Temp_LM336_C());
     //Serial.print("Unit Address = "); Serial.print(unit.get_analog_value()); Serial.print("  "); Serial.println(uAddr);
     task_10ms_handle.set_interval(10,RUN_RECURRING, run_10ms); 
@@ -84,12 +100,24 @@ void read_and_parse(char c)
     static char relay_indx = '-';
     static char relay_function = '-';
 
-    //Serial.print(cindx); Serial.print(": ");  Serial.println(c); 
+    Serial.print(cindx); Serial.print(": ");  Serial.println(c); 
     watchdog.clear();
     switch(cindx)
     {
         case 0: if (c!='<') do_continue = false; break;
-        case 1: if (c!='#') do_continue = false; break;
+        case 1: 
+            switch (c)
+            {
+                case '#':
+                    break;
+                case '@':
+                    cindx = 99;  //next = 99+1 = 100
+                    break;
+                default:        
+                    do_continue = false; 
+                    break;
+            }
+            break;
         case 2: if (c!='R') do_continue = false; break;
         case 3: unit_indx = c; break;
         case 4: relay_indx = c; break;
@@ -100,7 +128,7 @@ void read_and_parse(char c)
             if ((c=='\r') || (c=='\n'))
             {
                 //Serial.print("All received");Serial.print(unit_indx);Serial.println(uAddr);
-                if ((unit_indx==uAddr+'0') || unit_indx == '*') 
+                if ((unit_indx==uAddr) || unit_indx == '*') 
                 {
                     if((relay_indx >=0+'0') && (relay_indx <= NBR_RELAYS+'0')) 
                     {
@@ -118,11 +146,25 @@ void read_and_parse(char c)
                 }
                 do_continue = false;
             }
-            break;                
-    }
+            break;
+       
+        case 100: if (c!='@') do_continue = false; break;
+        case 101: unit_indx = c; break;
+        case 102: if (c!='@') do_continue = false; break;
+        case 103: if (c!='@') do_continue = false; break;
+        case 104: if (c!='>') do_continue = false; break;
+        case 105:
+            if ((c=='\r') || (c=='\n'))
+            {
+                Serial.print("New unit addr: ");  Serial.println(unit_indx); 
+                EEPROM.write(EEPROM_UNIT_ADDR, unit_indx);
+                uAddr = unit_indx;
+            }
+            break;
+     }
 
     cindx++;
-    if (cindx > MAX_TX_LEN -2) do_continue = false;              
+    if (cindx > 250) do_continue = false;              
 
     if (!do_continue)
     {
