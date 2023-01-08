@@ -2,7 +2,8 @@
 #include <SPI.h>
 #include <rfm69_support.h>
 #include <ArduinoJson.h>
-#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
+#include "AVR_Watchdog.h"
+// #include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
 #include "relay_dict.h"
 #include "relay_com.h"
@@ -32,6 +33,7 @@
 #define RFM69_FREQ      434.0   //915.0
 #define SERIAL_RX_BUF_LEN  16
 
+AVR_Watchdog watchdog(4);
 
 StaticJsonDocument<160> load_json;
 uint8_t serial_rx_state = 0;
@@ -40,9 +42,8 @@ char  serial_rx_buf[SERIAL_RX_BUF_LEN];
 
 
 void setup() {
-    wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
     delay(2000);
-    wdt_enable(WDTO_2S);  /* Enable the watchdog with a timeout of 2 seconds */
+    watchdog.set_timeout(600);
 
     Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
@@ -61,13 +62,14 @@ void loop(void) {
     char c;
     char io_addr[6];
     char pir_value[2];
-    wdt_reset();
+   
     
     if (radio_check_available_msg()) {
         // Serial.print("! available!");
         // Should be a message for us now   
         char json_msg[RH_RF69_MAX_MESSAGE_LEN];
         uint8_t len;
+        watchdog.clear();
         len = radio_read_msg(json_msg, RH_RF69_MAX_MESSAGE_LEN);
         if (len > 0) {;
             // Serial.println();

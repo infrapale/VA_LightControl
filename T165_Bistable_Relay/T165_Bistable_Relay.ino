@@ -19,7 +19,7 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 #include "Arduino.h"
-#include "AVR_Watchdog.h"
+#include "avr_watchdog.h"
 #include <EEPROM.h>
 
 #include <TaHa.h> 

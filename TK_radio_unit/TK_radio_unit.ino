@@ -1,10 +1,13 @@
-
+/**
+ * TK_radio_unit.ino
+ * !!! Watchdog changed but NOT tested
+ */
 #include "Arduino.h"
 #include <TaHa.h>
 #include <SPI.h>
 #include <rfm69_support.h>
 #include <ArduinoJson.h>
-#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
+#include "AVR_Watchdog.h"
 
 //#include "relay_dict.h"
 //#include "relay_com.h"
@@ -42,10 +45,10 @@ TaHa send_radio_handle;
 
 void send_radio(void);
 
-void setup() {
-    wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
+void setup() 
+{
     delay(4000);
-    wdt_enable(WDTO_2S);  /* Enable the watchdog with a timeout of 2 seconds */
+    watchdog.set_timeout(20);
 
     Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
@@ -110,7 +113,7 @@ void send_radio(void){
     if (inp_buff[inp_rd_ptr][0] != 0){
         for(uint8_t i = 0;i<3;i++)  Serial.print(inp_buff[inp_rd_ptr][i]);
         Serial.println();
-
+        watchdog.clear();
         switch (inp_buff[inp_rd_ptr][0]) {   // Unit Address
         case '1':
             switch(inp_buff[inp_rd_ptr][1]) {  // index
