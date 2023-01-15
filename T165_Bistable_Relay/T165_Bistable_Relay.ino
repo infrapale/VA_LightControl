@@ -19,14 +19,14 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 #include "Arduino.h"
-#include "avr_watchdog.h"
+#include "AVR_Watchdog.h"
 #include <EEPROM.h>
 
 #include <TaHa.h> 
 #include <SoftwareSerial.h>
 //#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
-#define DEFAULT_UNIT_ADDR '0'
+#define DEFAULT_UNIT_ADDR '1'
 
 #define RELAY_1A 8
 #define RELAY_1B 9

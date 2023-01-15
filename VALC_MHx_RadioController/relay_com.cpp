@@ -36,15 +36,18 @@ void SendSoftcomRelayMsg(char unit,char relay,char func){
     soft_buff[i++] = '\n';
     softCom.println(soft_buff);
     // Serial.print("SendSoftcomRelayMsg: ");
-    Serial.println(soft_buff);
-     
+    Serial.println(soft_buff);    
 }
 void SendSoftCom(const char *b){
-  Serial.println(b);
+  //Serial.println(b);
   softCom.print('<');
   softCom.print(b);
   softCom.println(">");
- 
+}
+
+void SendSoftComPing(void)
+{
+   SendSoftCom("!");
 }
 
  void DebugSoftCom(void){

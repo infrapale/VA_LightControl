@@ -12,5 +12,6 @@ boolean SoftComFlag(void);
 void InitSoftCom (void);
 void SendSoftcomRelayMsg(char unit,char relay,char func);
 void SendSoftCom(const char *b);
+void SendSoftComPing(void);
 void DebugSoftCom(void);
 #endif

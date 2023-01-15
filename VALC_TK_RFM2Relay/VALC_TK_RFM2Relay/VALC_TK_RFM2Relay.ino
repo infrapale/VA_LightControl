@@ -3,7 +3,6 @@
 #include <rfm69_support.h>
 #include <ArduinoJson.h>
 #include "AVR_Watchdog.h"
-// #include <avr/wdt.h>   /* Header for watchdog timers in AVR */
 
 #include "relay_dict.h"
 #include "relay_com.h"
@@ -33,7 +32,7 @@
 #define RFM69_FREQ      434.0   //915.0
 #define SERIAL_RX_BUF_LEN  16
 
-AVR_Watchdog watchdog(4);
+AVR_Watchdog watchdog(600);
 
 StaticJsonDocument<160> load_json;
 uint8_t serial_rx_state = 0;
@@ -43,11 +42,9 @@ char  serial_rx_buf[SERIAL_RX_BUF_LEN];
 
 void setup() {
     delay(2000);
-    watchdog.set_timeout(600);
-
     Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
-    Serial.println("VALC_TK_RFM2Relay");
+    Serial.println("VALC_TK_RFM2Relay 2023");
     Serial.println("GitHub: infrpale/VA_LightControl");
     radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
     radio_send_msg("VALC_TK_RFM2Relay");

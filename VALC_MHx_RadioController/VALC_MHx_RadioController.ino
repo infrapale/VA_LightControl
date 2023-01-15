@@ -2,12 +2,15 @@
 #include <SPI.h>
 #include <rfm69_support.h>
 #include <ArduinoJson.h>
-#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
+#include "AVR_Watchdog.h"
 
 #include "relay_dict.h"
 #include "relay_com.h"
 
-
+/**
+ * Villa Astrid Light Control 
+ * Connect to T165 bi-stable relay using soft serial TX
+ */
 // Adafruit M0+RFM60 Feather:
 // #8 - used as the radio CS (chip select) pin
 // #3 - used as the radio GPIO0 / IRQ (interrupt request) pin.
@@ -31,19 +34,19 @@
 
 #define RFM69_FREQ      434.0   //915.0
 #define SERIAL_RX_BUF_LEN  16
+#define PING_INTERVAL_ms    60000
 
-
+AVR_Watchdog watchdog(20*60);
 StaticJsonDocument<160> load_json;
 uint8_t serial_rx_state = 0;
 uint8_t serial_rx_idx   = 0;
 char  serial_rx_buf[SERIAL_RX_BUF_LEN];
+uint32_t next_ping_ms;
 
 
 void setup() {
-    wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
     delay(2000);
-    wdt_enable(WDTO_2S);  /* Enable the watchdog with a timeout of 2 seconds */
-
+    //watchdog.set_timeout(20*60);
     Serial.begin(9600);
     //while (!SERIAL) ;  // Wait for serial terminal to open port before starting program
     Serial.println("VALC_MHx_RadioController");
@@ -52,6 +55,7 @@ void setup() {
     radio_send_msg("VALC_MHx_RadioController");
     InitSoftCom();
     relay_dict_debug();
+    next_ping_ms = millis() + PING_INTERVAL_ms;
     
   }
 
@@ -61,13 +65,14 @@ void loop(void) {
     char c;
     char io_addr[6];
     char pir_value[2];
-    wdt_reset();
     
-    if (radio_check_available_msg()) {
+    if (radio_check_available_msg()) 
+    {
         // Serial.print("! available!");
         // Should be a message for us now   
         char json_msg[RH_RF69_MAX_MESSAGE_LEN];
         uint8_t len;
+        watchdog.clear();
         len = radio_read_msg(json_msg, RH_RF69_MAX_MESSAGE_LEN);
         if (len > 0) {;
             // Serial.println();
@@ -98,8 +103,15 @@ void loop(void) {
             // Serial.println("Receive failed");
         }
     }
-    else{
+    else
+    {
         // Serial.print('.');
+        if (millis() > next_ping_ms)
+        {
+            next_ping_ms = millis() + PING_INTERVAL_ms;
+            SendSoftComPing();
+            Serial.println("Ping");
+        }
     }
     //uint8_t serial_rx_state = 0;
     //uint8_t serial_rx_idx   = 0;
