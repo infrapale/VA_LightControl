@@ -1,5 +1,6 @@
-#define MH1_BTN
+//#define MH1_BTN
 //#define MH2_BTN
+#define ET_BTN
 //#define K_BTN
 //#define TK_RELAY
 
@@ -35,11 +36,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <avr/wdt.h>   /* Header for watchdog timers in AVR */
-#include <rfm69_support.h>
 #include <TaHa.h>
 #include "BtnPinOnOff.h"
-#include <Pin_Button.h>
 
 // Tasks
 TaHa scan_btn_handle;
@@ -57,16 +55,14 @@ byte code_rd_indx;
 
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission
-PinBtn butt[MAX_BTN];
+BtnPinOnOff butt[MAX_BTN];
  
 void setup() {
     byte i;
     
-    wdt_disable();  /* Disable the watchdog and wait for more than 2 seconds */
     delay(2000);
     while (!Serial); // wait until serial console is open, remove if not tethered to computer
     Serial.begin(SERIAL_BAUD);
-    wdt_enable(WDTO_2S);
     butt[0].Init(3,'1');
     butt[1].Init(4,'2');
     butt[2].Init(5,'3');
@@ -82,10 +78,6 @@ void setup() {
     code_wr_indx = 0;
     code_rd_indx = 0;
 
-    #ifdef K_BTN
-    kbd.begin();
-    qkbd.begin();
-    #endif
 
     pinMode(LED, OUTPUT);     
 
@@ -125,18 +117,30 @@ void mini_terminals(void){
     // if button is preseed add a command code to the ring buffer
 
     char btn;
+    char cmd,
     int btns;
     #if defined(MH1_BTN) || defined(MH2_BTN)
     btns = 3;
     #endif
-    
+    #if defined(ET_BTN)
+    btns = 6;
+    #endif    
+
     for(int i= 0; i < btns; i++){
         btn = butt[i].Read();  //   rd_btn();
         if(btn) break;
     }
-    if (btn != 0) {
+
+    if (btn != 0) 
+    {
+        if (btn & 0b10000000) 
+            cmd = '0';
+        else
+            cmd = '1'    
+        btn &= 0b01111111;
         //Serial.print("button= ");Serial.println(btn);
-        switch(btn){
+        switch(btn)
+        {
             #ifdef MH1_BTN
             case '1': add_code("MH1","RMH11","T"); break;
             case '2': add_code("MH1","RMH12","T"); break;
@@ -148,14 +152,14 @@ void mini_terminals(void){
             case '3': add_code("MH2","RET_1","T"); break;  
             #endif
             #ifdef ET_BTN
-            case '1': add_code("TK_","RMH21","T"); break;
+            case '1': add_code("TK1","RMH21","T"); break;
             case '2': add_code("MH2","RMH22","T"); break;
-            case '3': add_code("TK","RET_1","T"); break;  
-            case '4': add_code("TK_","RET_1","T"); break;  
+            case '3': add_code("TK1","RET_1","T"); break;  
+            case '4': add_code("TK1","RET_1","T"); break;  
             case '5': add_code("MH1","RET_1","T"); break;  
             case '6': add_code("MH1","RET_1","T"); break;  
-            case '7': add_code("TK_","WC_1","T"); break;  
-            case '7': add_code("MH2","WC_2","T"); break;  
+            case '7': add_code("TK1","RWC_1","T"); break;  
+            case '7': add_code("MH2","RWC_2","T"); break;  
             #endif
 
         }           
