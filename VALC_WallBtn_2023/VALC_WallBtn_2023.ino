@@ -26,7 +26,7 @@
 #define RFM69_FREQ    434.0   //915.0
 #define RFM69_TX_IVAL_100ms  20;
 #define LED           13  // onboard blinky
-#define MAX_BTN       6
+#define MAX_BTN       8
 #define CODE_LEN      6
 #define ZONE_LEN      4
 #define FUNC_LEN      4
@@ -38,6 +38,10 @@
 #include <SPI.h>
 #include <TaHa.h>
 #include "BtnPinOnOff.h"
+#include <rfm69_support.h>
+//#include <ArduinoJson.h>
+#include "avr_watchdog.h"
+
 
 // Tasks
 TaHa scan_btn_handle;
@@ -69,6 +73,8 @@ void setup() {
     butt[3].Init(6,'4');
     butt[4].Init(7,'5');
     butt[5].Init(8,'6');
+    butt[6].Init(A0,'7');
+    butt[7].Init(A1,'8');
 
     // clear code and zone buffers
     for(i=0;i<CODE_BUFF_LEN; i++){
@@ -98,12 +104,12 @@ void loop() {
   
     scan_btn_handle.run();
     radio_send_handle.run();
-    wdt_reset();
+    //wdt_reset();
     //-------------------------------------------------------
     // Read pressed buttons
     // if button is preseed add a command code to the ring buffer
     //-------------------------------------------------------
-    #if defined(MH1_BTN) || defined(MH2_BTN)
+    #if defined(MH1_BTN) || defined(MH2_BTN) || defined(ET_BTN)
          mini_terminals();
     #endif
     #ifdef K_BTN
@@ -116,17 +122,19 @@ void loop() {
 void mini_terminals(void){
     // if button is preseed add a command code to the ring buffer
 
-    char btn;
-    char cmd,
-    int btns;
+    char  btn;
+    char  cmd;
+    int   btns;
+
     #if defined(MH1_BTN) || defined(MH2_BTN)
     btns = 3;
     #endif
     #if defined(ET_BTN)
-    btns = 6;
+    btns = MAX_BTN;
     #endif    
 
-    for(int i= 0; i < btns; i++){
+    for(int i= 0; i < btns; i++)
+    {
         btn = butt[i].Read();  //   rd_btn();
         if(btn) break;
     }
@@ -136,30 +144,39 @@ void mini_terminals(void){
         if (btn & 0b10000000) 
             cmd = '0';
         else
-            cmd = '1'    
+            cmd = '1';    
         btn &= 0b01111111;
         //Serial.print("button= ");Serial.println(btn);
         switch(btn)
         {
             #ifdef MH1_BTN
-            case '1': add_code("MH1","RMH11","T"); break;
-            case '2': add_code("MH1","RMH12","T"); break;
-            case '3': add_code("MH1","RMH13","T"); break;
+            case '1': add_code("MH1","RMH11",'T'); break;
+            case '2': add_code("MH1","RMH12",'T'); break;
+            case '3': add_code("MH1","RMH13",'T'); break;
             #endif
+            
             #ifdef MH2_BTN
-            case '1': add_code("MH2","RMH21","T"); break;
-            case '2': add_code("MH2","RMH22","T"); break;
-            case '3': add_code("MH2","RET_1","T"); break;  
+            case '1': add_code("MH2","RMH21",'T'); break;
+            case '2': add_code("MH2","RMH22",'T'); break;
+            case '3': add_code("MH2","RET_1",'T'); break;  
             #endif
+
             #ifdef ET_BTN
-            case '1': add_code("TK1","RMH21","T"); break;
-            case '2': add_code("MH2","RMH22","T"); break;
-            case '3': add_code("TK1","RET_1","T"); break;  
-            case '4': add_code("TK1","RET_1","T"); break;  
-            case '5': add_code("MH1","RET_1","T"); break;  
-            case '6': add_code("MH1","RET_1","T"); break;  
-            case '7': add_code("TK1","RWC_1","T"); break;  
-            case '7': add_code("MH2","RWC_2","T"); break;  
+            case '1': add_code("TK1","RTK_1",cmd); break;
+            case '2': add_code("MH2","RET_1",cmd); break;
+            case '3': add_code("TK1","RTUP1",cmd); break;  
+            case '4': add_code("TK1","RTUP2",cmd); break;  
+            case '5': 
+                add_code("MH1","RKOK1",cmd); 
+                add_code("MH1","RKOK2",cmd); 
+                add_code("MH1","RKOK3",cmd); 
+                break;  
+            case '6': 
+                add_code("MH2","RKHH2",cmd); 
+                add_code("MH2","RPSH1",cmd);
+                break;  
+            case '7': add_code("TK1","RWC_1",cmd); break;  
+            case '8': add_code("MH2","RWC_2",cmd); break;  
             #endif
 
         }           
@@ -215,7 +232,7 @@ void maxi_terminals(void){
 }
 
 
-void add_code(const char *new_zone, const char *new_code, const char *new_func){
+void add_code(const char *new_zone, const char *new_code, char new_func){
     int i;
     for(i = 0; i < CODE_LEN; i++) {
         if (new_code[i] != 0) { 
@@ -233,15 +250,8 @@ void add_code(const char *new_zone, const char *new_code, const char *new_func){
            zone_buff[code_wr_indx][i] =0;
         }   
     }
-    for(i = 0; i < FUNC_LEN; i++) {
-        if (new_func[i] != 0) { 
-            func_buff[code_wr_indx][i] = new_func[i];
-        } 
-        else {
-           func_buff[code_wr_indx][i] =0;
-        }   
-    }
- 
+    func_buff[code_wr_indx][i++] = new_func;
+    func_buff[code_wr_indx][i] = 0x00;
 
     code_wr_indx = ++code_wr_indx & CODE_BUFF_LEN_MASK;   
 }
@@ -265,8 +275,9 @@ void radio_tx_hanndler(void){
 }
 
 void scan_btn(void){
-   #if defined(MH1_BTN) || defined(MH2_BTN)
-   for(int i= 0;i<MAX_BTN;i++){
+   #if defined(MH1_BTN) || defined(MH2_BTN) || defined(ET_BTN)
+   for(int i= 0;i<MAX_BTN;i++)
+   {
        butt[i].Scan();
    }    
    //scan_btn();
