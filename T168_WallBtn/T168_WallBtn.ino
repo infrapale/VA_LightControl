@@ -1,6 +1,7 @@
-#define MH1_BTN
+//#define MH1_BTN
 //#define MH2_BTN
 //#define K_BTN
+#define ET_BTN
 //#define TK_RELAY
 
 #define MENU_DATA
@@ -23,9 +24,9 @@
 #define RFM69_IRQN    0  // Pin 2 is IRQ 0!
 #define RFM69_RST     9
 #define RFM69_FREQ    434.0   //915.0
-#define RFM69_TX_IVAL_100ms  20;
+#define RFM69_TX_IVAL_100ms  20
 #define LED           13  // onboard blinky
-#define MAX_BTN       6
+#define MAX_BTN       8
 #define CODE_LEN      6
 #define ZONE_LEN      4
 #define FUNC_LEN      4
@@ -39,7 +40,7 @@
 #include <rfm69_support.h>
 #include <TaHa.h>
 #include "BtnPinOnOff.h"
-#include <Pin_Button.h>
+//#include <Pin_Button.h>
 
 // Tasks
 TaHa scan_btn_handle;
@@ -57,7 +58,7 @@ byte code_rd_indx;
 
 
 int16_t packetnum = 0;  // packet counter, we increment per xmission
-PinBtn butt[MAX_BTN];
+BtnPinOnOff butt[MAX_BTN];
  
 void setup() {
     byte i;
@@ -73,6 +74,8 @@ void setup() {
     butt[3].Init(6,'4');
     butt[4].Init(7,'5');
     butt[5].Init(8,'6');
+    butt[5].Init(10,'7');
+    butt[5].Init(11,'8');
 
     // clear code and zone buffers
     for(i=0;i<CODE_BUFF_LEN; i++){
@@ -90,7 +93,13 @@ void setup() {
     pinMode(LED, OUTPUT);     
 
     radio_init(RFM69_CS,RFM69_INT,RFM69_RST, RFM69_FREQ);
-    radio_send_msg("T168_Wall_Button");
+    #ifdef ET_BTN
+    radio_send_msg("T168_Wall_Button / ET");
+    #elif MH1_BTN
+    radio_send_msg("T168_Wall_Button / MH1");
+    #elif MH2_BTN
+    radio_send_msg("T168_Wall_Button / MH2");
+    #endif
 
     // ------------------Real time settings---------------------
     scan_btn_handle.set_interval(10,RUN_RECURRING, scan_btn);
@@ -111,7 +120,7 @@ void loop() {
     // Read pressed buttons
     // if button is preseed add a command code to the ring buffer
     //-------------------------------------------------------
-    #if defined(MH1_BTN) || defined(MH2_BTN)
+    #if defined(MH1_BTN) || defined(MH2_BTN) || defined(ET_BTN)
          mini_terminals();
     #endif
     #ifdef K_BTN
@@ -126,8 +135,11 @@ void mini_terminals(void){
 
     char btn;
     int btns;
+    char relay_func[2] = "0";
     #if defined(MH1_BTN) || defined(MH2_BTN)
     btns = 3;
+    #else 
+    btns = 8;
     #endif
     
     for(int i= 0; i < btns; i++){
@@ -135,27 +147,37 @@ void mini_terminals(void){
         if(btn) break;
     }
     if (btn != 0) {
-        //Serial.print("button= ");Serial.println(btn);
-        switch(btn){
+        if ((btn & 0b10000000) == 0) relay_func[0] = '1';
+        btn &= 0b01111111;
+        Serial.print("button= ");Serial.println(btn);
+        switch(btn)
+        {
             #ifdef MH1_BTN
-            case '1': add_code("MH1","RMH11","T"); break;
-            case '2': add_code("MH1","RMH12","T"); break;
-            case '3': add_code("MH1","RMH13","T"); break;
+            case '1': add_code("MH1","RMH11", relay_func); break;
+            case '2': add_code("MH1","RMH12", relay_func"); break;
+            case '3': add_code("MH1","RMH13", relay_func); break;
             #endif
             #ifdef MH2_BTN
-            case '1': add_code("MH2","RMH21","T"); break;
-            case '2': add_code("MH2","RMH22","T"); break;
-            case '3': add_code("MH2","RET_1","T"); break;  
+            case '1': add_code("MH2","RMH21", relay_func); break;
+            case '2': add_code("MH2","RMH22", relay_func); break;
+            case '3': add_code("MH2","RET_1", relay_func); break;  
             #endif
             #ifdef ET_BTN
-            case '1': add_code("TK_","RMH21","T"); break;
-            case '2': add_code("MH2","RMH22","T"); break;
-            case '3': add_code("TK","RET_1","T"); break;  
-            case '4': add_code("TK_","RET_1","T"); break;  
-            case '5': add_code("MH1","RET_1","T"); break;  
-            case '6': add_code("MH1","RET_1","T"); break;  
-            case '7': add_code("TK_","WC_1","T"); break;  
-            case '7': add_code("MH2","WC_2","T"); break;  
+            case '1': add_code("TK1","RTUP1", relay_func); break;
+            case '2': add_code("TK1","RTUP2", relay_func); break;
+            case '3': 
+                add_code("MH1","RKOK1", relay_func); 
+                add_code("MH1","RKOK2", relay_func); 
+                 break;  
+            case '4': 
+                add_code("MH1","RKOK3", relay_func); 
+                add_code("MH1","RKOK4", relay_func); 
+                add_code("MH1","RKOK5", relay_func); 
+                break;
+            case '5': add_code("MH2","RET_1", relay_func); break;  
+            case '6': add_code("MH1","RET_1", relay_func); break;  
+            case '7': add_code("TK_","WC_1", relay_func); break;  
+            case '8': add_code("MH2","WC_2", relay_func); break;  
             #endif
 
         }           
@@ -261,8 +283,9 @@ void radio_tx_hanndler(void){
 }
 
 void scan_btn(void){
-   #if defined(MH1_BTN) || defined(MH2_BTN)
-   for(int i= 0;i<MAX_BTN;i++){
+   #if defined(MH1_BTN) || defined(MH2_BTN) || defined(ET_BTN)
+   for(int i= 0;i<MAX_BTN;i++)
+   {
        butt[i].Scan();
    }    
    //scan_btn();
