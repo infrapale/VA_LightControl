@@ -74,8 +74,8 @@ void setup() {
     butt[3].Init(6,'4');
     butt[4].Init(7,'5');
     butt[5].Init(8,'6');
-    butt[5].Init(10,'7');
-    butt[5].Init(11,'8');
+    butt[6].Init(14,'7');
+    butt[7].Init(15,'8');
 
     // clear code and zone buffers
     for(i=0;i<CODE_BUFF_LEN; i++){
@@ -163,21 +163,39 @@ void mini_terminals(void){
             case '3': add_code("MH2","RET_1", relay_func); break;  
             #endif
             #ifdef ET_BTN
-            case '1': add_code("TK1","RTUP1", relay_func); break;
-            case '2': add_code("TK1","RTUP2", relay_func); break;
+            case '1': 
+                add_code("TK1","RTUP1", relay_func); 
+                break;
+            case '2': 
+                add_code("TK1","RTUP2", relay_func); 
+                break;
             case '3': 
-                add_code("MH1","RKOK1", relay_func); 
-                add_code("MH1","RKOK2", relay_func); 
+                add_code("MH2","RKHH2", relay_func); 
+                add_code("MH2","RPSH1", relay_func); 
+                add_code("TK1","RKHH1", relay_func); 
                  break;  
             case '4': 
+                add_code("MH1","RKOK1", relay_func); 
+                add_code("MH1","RKOK2", relay_func); 
                 add_code("MH1","RKOK3", relay_func); 
                 add_code("MH1","RKOK4", relay_func); 
                 add_code("MH1","RKOK5", relay_func); 
                 break;
-            case '5': add_code("MH2","RET_1", relay_func); break;  
-            case '6': add_code("MH1","RET_1", relay_func); break;  
-            case '7': add_code("TK_","WC_1", relay_func); break;  
-            case '8': add_code("MH2","WC_2", relay_func); break;  
+            case '5': 
+                add_code("MH2","RET_1", relay_func); 
+                break;  
+            case '6': 
+                add_code("TK1","RWC_1", relay_func);
+                add_code("MH2","RWC_2", relay_func);
+                break;  
+            case '7': 
+                add_code("TK1","RTUP1", relay_func); 
+                add_code("TK1","RWC_1", relay_func); 
+                break;  
+            case '8': 
+                add_code("TK1","RTUP2", relay_func); 
+                add_code("MH2","RWC_2", relay_func); 
+                break;  
             #endif
 
         }           
